@@ -36,15 +36,15 @@ pub struct LoginLinksResponse {
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct LoggedInResponse {
-    authToken: String,
+    pub authToken: String,
     pub userId: String,
-    authorizedUsing: AuthorizationType,
-    privileges: Vec<String>,
+    pub authorizedUsing: AuthorizationType,
+    pub privileges: Vec<String>,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]
-enum AuthorizationType {
+pub enum AuthorizationType {
     ACROLINX_SSO,
     ACROLINX_SIGN_IN,
     ACROLINX_TOKEN,
@@ -96,17 +96,11 @@ impl AcroApi {
         res.json()
     }
 
-    pub fn wait_for_signin(&self, login_links: &LoginLinks) -> Result<(), Error> {
-        loop {
-            let mut res = reqwest::get(&login_links.poll)?;
-            eprintln!("wait_for_signin status = {:?} ({:?})", res.status(), res.status().as_u16());
-            if res.status() != StatusCode::Accepted {
-                break
-            } else {
-                eprintln!("waitForLogin = {:?}", res.text().unwrap());
-            }
+    pub fn wait_for_signin(&self, login_links: &LoginLinks) -> Result<LoggedInResponse, Error> {
+        let mut res = reqwest::get(&login_links.poll)?;
+        while res.status() == StatusCode::Accepted  {
+            res = reqwest::get(&login_links.poll)?;
         }
-
-        Ok(())
+        return res.json();
     }
 }
