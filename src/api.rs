@@ -1,7 +1,8 @@
 use reqwest;
-use reqwest::Error;
-use reqwest::header::{ContentType};
+use reqwest::{Error, StatusCode};
+use reqwest::header::ContentType;
 use reqwest::mime::APPLICATION_JSON;
+
 use serde_json;
 
 #[allow(non_snake_case)]
@@ -23,7 +24,7 @@ struct LoginRequest {
 #[serde(untagged)]
 pub enum LoginRequestResponse {
     LoginLinks(LoginLinksResponse),
-    LoggedIn(LoggedInResponse)
+    LoggedIn(LoggedInResponse),
 }
 
 #[allow(non_snake_case)]
@@ -38,7 +39,7 @@ pub struct LoggedInResponse {
     authToken: String,
     pub userId: String,
     authorizedUsing: AuthorizationType,
-    privileges: Vec<String>
+    privileges: Vec<String>,
 }
 
 #[allow(non_camel_case_types)]
@@ -46,7 +47,7 @@ pub struct LoggedInResponse {
 enum AuthorizationType {
     ACROLINX_SSO,
     ACROLINX_SIGN_IN,
-    ACROLINX_TOKEN
+    ACROLINX_TOKEN,
 }
 
 #[allow(non_snake_case)]
@@ -54,6 +55,12 @@ enum AuthorizationType {
 pub struct LoginLinks {
     pub interactive: String,
     poll: String,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct ApiError {
+    pub message: String,
 }
 
 pub struct AcroApi {
@@ -87,5 +94,19 @@ impl AcroApi {
         // eprintln!("res.text() = {:?}", res.text().unwrap());
 
         res.json()
+    }
+
+    pub fn wait_for_signin(&self, login_links: &LoginLinks) -> Result<(), Error> {
+        loop {
+            let mut res = reqwest::get(&login_links.poll)?;
+            eprintln!("wait_for_signin status = {:?} ({:?})", res.status(), res.status().as_u16());
+            if res.status() != StatusCode::Accepted {
+                break
+            } else {
+                eprintln!("waitForLogin = {:?}", res.text().unwrap());
+            }
+        }
+
+        Ok(())
     }
 }

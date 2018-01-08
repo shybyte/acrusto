@@ -19,6 +19,7 @@ fn main() {
     match login_response {
         LoginLinks(login_links_response) => {
             println!("Please signin at {:?}", login_links_response.links.interactive);
+            api.wait_for_signin(&login_links_response.links).unwrap();
         },
         LoggedIn(logged_in) => {
             println!("You are already logged in as {:?}", logged_in.userId);
