@@ -98,9 +98,11 @@ impl AcroApi {
 
     pub fn wait_for_signin(&self, login_links: &LoginLinks) -> Result<LoggedInResponse, Error> {
         let mut res = reqwest::get(&login_links.poll)?;
+
         while res.status() == StatusCode::Accepted  {
             res = reqwest::get(&login_links.poll)?;
         }
-        return res.json();
+
+        res.json()
     }
 }

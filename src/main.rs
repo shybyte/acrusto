@@ -2,14 +2,18 @@
 extern crate serde_derive;
 extern crate serde_json;
 extern crate reqwest;
+#[macro_use]
+extern crate clap;
 
 mod api;
 
+use std::env;
+use clap::{Arg, App, SubCommand};
 use api::AcroApi;
 use api::LoginRequestResponse::*;
 
-fn main() {
-    let api = AcroApi::new("https://test-latest-ssl.acrolinx.com");
+fn signin_command(server_address: &str) {
+    let api = AcroApi::new(server_address); // "https://test-latest-ssl.acrolinx.com"
 
     println!("Yeah, there is a server: {:?}", api.server_version());
 
@@ -22,9 +26,38 @@ fn main() {
             let logged_in = api.wait_for_signin(&login_links_response.links).unwrap();
             println!("authToken = {:?}", logged_in.authToken);
             println!("You are logged in as {:?}", logged_in.userId);
-        },
+        }
         LoggedIn(logged_in) => {
             println!("You are already logged in as {:?}", logged_in.userId);
         }
+    }
+}
+
+static SERVER_ADDRESS_ARG: &str = "SERVER_ADDRESS";
+
+fn main() {
+    let mut command_line_parser = App::new("acrusto")
+        .version(crate_version!())
+        .author("Marco Stahl <shybyte@gmail.com>")
+        .about("Unofficial commandline tool for the Acrolinx Platform API")
+        .subcommand(SubCommand::with_name("signin")
+            .about("Signin to Acrolinx")
+            .arg(Arg::with_name(SERVER_ADDRESS_ARG)
+                .required(true)
+                .index(1)
+            )
+        );
+
+    let args: Vec<_> = env::args().collect();
+    if args.len() < 2 {
+        command_line_parser.print_help().ok();
+    }
+
+    let matches = command_line_parser.get_matches();
+
+    if let Some(matches) = matches.subcommand_matches("signin") {
+        let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
+        eprintln!("server_address = {:?}", server_address);
+        signin_command(server_address);
     }
 }
