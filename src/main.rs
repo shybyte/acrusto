@@ -2,8 +2,13 @@
 extern crate serde_derive;
 extern crate serde_json;
 extern crate reqwest;
+
 #[macro_use]
 extern crate clap;
+
+#[macro_use]
+extern crate hyper;
+
 
 mod api;
 
@@ -12,12 +17,12 @@ use clap::{Arg, App, SubCommand};
 use api::AcroApi;
 use api::LoginRequestResponse::*;
 
-fn signin_command(server_address: &str) {
+fn signin_command(server_address: &str, auth_token_option: Option<String>) {
     let api = AcroApi::new(server_address); // "https://test-latest-ssl.acrolinx.com"
 
     println!("Yeah, there is a server: {:?}", api.server_version());
 
-    let login_response = api.login().unwrap();
+    let login_response = api.login(auth_token_option).unwrap();
     println!("login_response = {:?}", login_response);
 
     match login_response {
@@ -34,12 +39,18 @@ fn signin_command(server_address: &str) {
 }
 
 static SERVER_ADDRESS_ARG: &str = "SERVER_ADDRESS";
+static AUTH_TOKEN_ARG: &str = "authToken";
 
 fn main() {
     let mut command_line_parser = App::new("acrusto")
         .version(crate_version!())
         .author("Marco Stahl <shybyte@gmail.com>")
         .about("Unofficial commandline tool for the Acrolinx Platform API")
+        .arg(Arg::with_name(AUTH_TOKEN_ARG)
+            .short("a")
+            .long("authToken")
+            .help("Use an authToken")
+            .takes_value(true))
         .subcommand(SubCommand::with_name("signin")
             .about("Signin to Acrolinx")
             .arg(Arg::with_name(SERVER_ADDRESS_ARG)
@@ -55,9 +66,10 @@ fn main() {
 
     let matches = command_line_parser.get_matches();
 
-    if let Some(matches) = matches.subcommand_matches("signin") {
-        let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
-        eprintln!("server_address = {:?}", server_address);
-        signin_command(server_address);
+    if let Some(command_matches) = matches.subcommand_matches("signin") {
+        let server_address = command_matches.value_of(SERVER_ADDRESS_ARG).unwrap();
+        let auth_token_option = matches.value_of(AUTH_TOKEN_ARG);
+        eprintln!("signin {:?} {:?}", server_address, auth_token_option);
+        signin_command(server_address, auth_token_option.map(|s| s.to_string()));
     }
 }
