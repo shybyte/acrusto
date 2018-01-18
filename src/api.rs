@@ -19,22 +19,22 @@ pub struct ServerVersionInfo {
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
-struct LoginRequest {
+struct SigninRequest {
     clientName: String,
 }
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
-pub enum LoginRequestResponse {
-    LoginLinks(LoginLinksResponse),
+pub enum SigninRequestResponse {
+    SigninLinks(SigninLinksResponse),
     LoggedIn(LoggedInResponse),
 }
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-pub struct LoginLinksResponse {
-    pub links: LoginLinks,
+pub struct SigninLinksResponse {
+    pub links: SigninLinks,
 }
 
 #[allow(non_snake_case)]
@@ -56,7 +56,7 @@ pub enum AuthorizationType {
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-pub struct LoginLinks {
+pub struct SigninLinks {
     pub interactive: String,
     poll: String,
 }
@@ -100,11 +100,11 @@ impl AcroApi {
         resp.json()
     }
 
-    pub fn signin(&self, options: SigninOptions) -> Result<LoginRequestResponse, Error> {
+    pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
         let client = reqwest::Client::new();
-        let url = self.server_url.clone() + "/iq/services/v1/rest/login";
+        let url = self.server_url.clone() + "/api/v1/auth/sign-ins";
 
-        let body = LoginRequest { clientName: "Acrusto".to_string() };
+        let body = SigninRequest { clientName: "Acrusto".to_string() };
 
         let mut res = client.post(&url)
             .headers(self.get_headers(options))
@@ -147,13 +147,13 @@ impl AcroApi {
         headers
     }
 
-    pub fn wait_for_signin(&self, login_links: &LoginLinks) -> Result<LoggedInResponse, Error> {
-        let mut res = reqwest::Client::new().get(&login_links.poll)
+    pub fn wait_for_signin(&self, signin_links: &SigninLinks) -> Result<LoggedInResponse, Error> {
+        let mut res = reqwest::Client::new().get(&signin_links.poll)
             .headers(self.get_headers(SigninOptions::InteractiveSignin))
             .send()?;
 
         while res.status() == StatusCode::Accepted {
-            res = reqwest::get(&login_links.poll)?;
+            res = reqwest::get(&signin_links.poll)?;
         }
 
         res.json()

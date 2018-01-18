@@ -15,7 +15,7 @@ mod api;
 use std::env;
 use clap::{Arg, App, SubCommand};
 use api::{AcroApi, SigninOptions, SsoOptions};
-use api::LoginRequestResponse::*;
+use api::SigninRequestResponse::*;
 
 fn signin_command(server_address: &str, auth_token_option: Option<String>) {
     let api = AcroApi::new(server_address); // "https://test-latest-ssl.acrolinx.com"
@@ -27,13 +27,13 @@ fn signin_command(server_address: &str, auth_token_option: Option<String>) {
         None => SigninOptions::InteractiveSignin
     };
 
-    let login_response = api.signin(signin_options).unwrap();
-    println!("login_response = {:?}", login_response);
+    let signin_response = api.signin(signin_options).unwrap();
+    println!("signin_response = {:?}", signin_response);
 
-    match login_response {
-        LoginLinks(login_links_response) => {
-            println!("Please signin at {:?}", login_links_response.links.interactive);
-            let logged_in = api.wait_for_signin(&login_links_response.links).unwrap();
+    match signin_response {
+        SigninLinks(signin_links_response) => {
+            println!("Please signin at {:?}", signin_links_response.links.interactive);
+            let logged_in = api.wait_for_signin(&signin_links_response.links).unwrap();
             println!("authToken = {:?}", logged_in.authToken);
             println!("You are logged in as {:?}", logged_in.userId);
         }
@@ -46,13 +46,13 @@ fn signin_command(server_address: &str, auth_token_option: Option<String>) {
 fn sso_command<S: Into<String>>(server_address: &str, user_id: S, password: S) {
     let api = AcroApi::new(server_address); // "https://test-latest-ssl.acrolinx.com"
     println!("Yeah, there is a server: {:?}", api.server_version());
-    let login_response = api.signin(SigninOptions::Sso(
+    let signin_response = api.signin(SigninOptions::Sso(
         SsoOptions {
             user_id: Some(user_id.into()),
             password: Some(password.into()),
             ..SsoOptions::default()
         })).unwrap();
-    println!("login_response = {:?}", login_response);
+    println!("signin_response = {:?}", signin_response);
 }
 
 static SERVER_ADDRESS_ARG: &str = "SERVER_ADDRESS";
