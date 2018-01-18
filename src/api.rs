@@ -67,6 +67,22 @@ pub struct ApiError {
     pub message: String,
 }
 
+#[derive(Deserialize, Debug, Default)]
+pub struct SsoOptions {
+    pub username_key: Option<String>,
+    pub password_key: Option<String>,
+    pub user_id: Option<String>,
+    pub password: Option<String>,
+}
+
+
+pub enum SigninOptions {
+    Sso(SsoOptions),
+    Token(String),
+    InteractiveSignin,
+}
+
+
 pub struct AcroApi {
     server_url: String
 }
@@ -84,14 +100,14 @@ impl AcroApi {
         resp.json()
     }
 
-    pub fn login(&self, auth_token_option: Option<String>) -> Result<LoginRequestResponse, Error> {
+    pub fn signin(&self, options: SigninOptions) -> Result<LoginRequestResponse, Error> {
         let client = reqwest::Client::new();
         let url = self.server_url.clone() + "/iq/services/v1/rest/login";
 
         let body = LoginRequest { clientName: "Acrusto".to_string() };
 
         let mut res = client.post(&url)
-            .headers(self.get_headers(auth_token_option))
+            .headers(self.get_headers(options))
             .body(serde_json::to_string(&body).unwrap())
             .send()?;
         // eprintln!("Status = {:?}", res.status());
@@ -100,24 +116,43 @@ impl AcroApi {
         res.json()
     }
 
-    fn get_headers(&self, auth_token_option: Option<String>) -> Headers {
+    fn get_headers(&self, options: SigninOptions) -> Headers {
         let mut headers = Headers::new();
+
         headers.set(UserAgent::new("acrusto"));
         headers.set(ContentType(APPLICATION_JSON));
         headers.set(XAcrolinxBaseUrl(self.server_url.to_string()));
         headers.set(XAcrolinxClientLocale("en".to_string()));
-        if let Some(auth_token) = auth_token_option {
-            headers.set(XAcrolinxAuth(auth_token));
-        };
+
+        match options {
+            SigninOptions::Sso(sso_options) => {
+                if let Some(user_id) = sso_options.user_id {
+                    headers.set_raw(
+                        sso_options.username_key.unwrap_or_else(|| "username".to_string()),
+                        user_id
+                    );
+                }
+                if let Some(password) = sso_options.password {
+                    headers.set_raw(
+                        sso_options.password_key.unwrap_or_else(|| "password".to_string()),
+                        password
+                    );
+                }
+            }
+            SigninOptions::Token(token) => headers.set(XAcrolinxAuth(token)),
+            SigninOptions::InteractiveSignin => {}
+        }
+
+
         headers
     }
 
     pub fn wait_for_signin(&self, login_links: &LoginLinks) -> Result<LoggedInResponse, Error> {
         let mut res = reqwest::Client::new().get(&login_links.poll)
-            .headers(self.get_headers(None))
+            .headers(self.get_headers(SigninOptions::InteractiveSignin))
             .send()?;
 
-        while res.status() == StatusCode::Accepted  {
+        while res.status() == StatusCode::Accepted {
             res = reqwest::get(&login_links.poll)?;
         }
 
