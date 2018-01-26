@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate serde_derive;
+extern crate serde;
 extern crate serde_json;
 extern crate reqwest;
 
@@ -15,18 +16,31 @@ mod config;
 
 use std::env;
 use clap::{Arg, App, SubCommand};
-use api::{AcroApi, SigninOptions, SsoOptions};
+use api::{AcroApi, SigninOptions, SsoOptions, AcroApiProps, ClientInformation};
 use api::SigninRequestResponse::*;
 use config::Config;
 
 
+fn connect<S: Into<String>>(server_url: S) -> AcroApi {
+    AcroApi::new(AcroApiProps {
+        server_url: server_url.into(),
+        locale: "en".to_string(),
+        client: ClientInformation {
+            name: "Acrusto".to_string(),
+            signature: "dummySignature".to_string(),
+            version: crate_version!().to_string(),
+        },
+    })
+}
+
+
 fn server_info(server_address: &str) {
-    let api = AcroApi::new(server_address);
+    let api = connect(server_address);
     println!("{:?}", api.server_version());
 }
 
 fn signin_command(server_address: &str, auth_token_option: Option<String>) {
-    let api = AcroApi::new(server_address); // "https://test-latest-ssl.acrolinx.com"
+    let api = connect(server_address);
 
     println!("Yeah, there is a server: {:?}", api.server_version());
 
@@ -52,7 +66,7 @@ fn signin_command(server_address: &str, auth_token_option: Option<String>) {
 }
 
 fn sso_command<S: Into<String>>(server_address: &str, user_id: S, password: S) {
-    let api = AcroApi::new(server_address); // "https://test-latest-ssl.acrolinx.com"
+    let api = connect(server_address);
     println!("Yeah, there is a server: {:?}", api.server_version());
     let signin_response = api.signin(SigninOptions::Sso(
         SsoOptions {
