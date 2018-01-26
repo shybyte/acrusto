@@ -94,15 +94,22 @@ fn main() {
         .version(crate_version!())
         .author("Marco Stahl <shybyte@gmail.com>")
         .about("Unofficial commandline tool for the Acrolinx Platform API")
-        .arg(Arg::with_name(AUTH_TOKEN_ARG)
-            .short("a")
-            .long(AUTH_TOKEN_ARG)
-            .help("Use an authToken")
-            .takes_value(true))
         .arg({
             let arg = Arg::with_name(SERVER_ADDRESS_ARG).required(true).long(SERVER_ADDRESS_ARG).takes_value(true);
             if let Some(ref server_address) = config.serverAddress {
                 arg.default_value(server_address)
+            } else {
+                arg
+            }
+        })
+        .arg({
+            let arg = Arg::with_name(AUTH_TOKEN_ARG)
+                .short("a")
+                .long(AUTH_TOKEN_ARG)
+                .help("Use an authToken")
+                .takes_value(true);
+            if let Some(ref auth_token) = config.authToken {
+                arg.default_value(auth_token)
             } else {
                 arg
             }
