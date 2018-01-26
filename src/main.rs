@@ -86,7 +86,7 @@ fn main() {
             .help("Use an authToken")
             .takes_value(true))
         .arg({
-            let mut arg = Arg::with_name(SERVER_ADDRESS_ARG).required(true).long(SERVER_ADDRESS_ARG).takes_value(true);
+            let arg = Arg::with_name(SERVER_ADDRESS_ARG).required(true).long(SERVER_ADDRESS_ARG).takes_value(true);
             if let Some(ref server_address) = config.serverAddress {
                 arg.default_value(server_address)
             } else {
