@@ -13,6 +13,7 @@ extern crate hyper;
 
 mod api;
 mod config;
+mod checking_types;
 
 use std::env;
 use clap::{Arg, App, SubCommand};
@@ -34,9 +35,12 @@ fn connect<S: Into<String>>(server_url: S) -> AcroApi {
 }
 
 
-fn server_info(server_address: &str) {
+fn server_info(server_address: &str, token_option: Option<&str>) {
     let api = connect(server_address);
     println!("{:?}", api.server_version());
+    if let Some(token) = token_option {
+        println!("{:?}", api.get_checking_capabilities(token));
+    }
 }
 
 fn signin_command(server_address: &str, auth_token_option: Option<String>) {
@@ -135,8 +139,8 @@ fn main() {
         eprintln!("signin {:?} {:?}", server_address, auth_token_option);
         signin_command(server_address, auth_token_option.map(|s| s.to_string()));
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
-        eprintln!("info {:?}", server_address);
-        server_info(server_address);
+        eprintln!("info {:?} {:?}", server_address, auth_token_option);
+        server_info(server_address, auth_token_option);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_SSO) {
         let user_id = command_matches.value_of(USER_ID_ARG).unwrap();
         let password = command_matches.value_of(PASSWORD_ARG).unwrap();

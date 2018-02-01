@@ -8,6 +8,8 @@ use std::thread;
 
 use serde_json;
 
+use checking_types::*;
+
 header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
 header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }
 header! { (XAcrolinxBaseUrl, "X-Acrolinx-Base-Url") => [String] }
@@ -125,7 +127,7 @@ impl AcroApi {
 
     pub fn server_version(&self) -> Result<ServerVersionInfo, Error> {
         let url = self.props.server_url.clone() + "/iq/services/v3/rest/core/serverVersion";
-        self.get(&url)?.json()
+        self.get(&url, None)?.json()
     }
 
     pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
@@ -134,12 +136,17 @@ impl AcroApi {
         self.post(&url, &body, self.create_signin_headers(options))?.json()
     }
 
+    pub fn get_checking_capabilities(&self, token: &str) -> Result<CheckingCapabilities, Error> {
+        let url = self.props.server_url.clone() + "/api/v1/checking/capabilities";
+        self.get(&url, Some(token))?.json()
+    }
+
     pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, Error> {
         if let Some(pm) = poll_more {
             thread::sleep(pm.retry_after);
         }
 
-        let mut res = self.get(&signin_links.poll)?;
+        let mut res = self.get(&signin_links.poll, None)?;
 
         if res.status() == StatusCode::Accepted {
             let retry_after: &RetryAfter = res.headers().get::<RetryAfter>().unwrap();
@@ -168,31 +175,38 @@ impl AcroApi {
         }
     }
 
-    fn get<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::Result<reqwest::Response> {
+    fn get<U: reqwest::IntoUrl>(&self, url: U, token: Option<&str>) -> reqwest::Result<reqwest::Response> {
         reqwest::Client::new()
             .get(url)
-            .headers(self.create_common_headers())
+            .headers(self.create_common_headers(token))
             .send()
     }
 
     fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers) -> reqwest::Result<reqwest::Response>
         where B: serde::Serialize
     {
-        reqwest::Client::new()
+        let response = reqwest::Client::new()
             .post(url)
-            .headers(self.create_common_headers())
+            .headers(self.create_common_headers(None))
             .headers(headers)
             .body(serde_json::to_string(&body).unwrap())
-            .send()
+            .send();
+
+        eprintln!("response = {:?}", response);
+
+        response
     }
 
-    fn create_common_headers(&self) -> Headers {
+    fn create_common_headers(&self, token: Option<&str>) -> Headers {
         let mut headers = Headers::new();
         headers.set(UserAgent::new(self.props.client.name.clone()));
         headers.set(ContentType(APPLICATION_JSON));
         headers.set(XAcrolinxBaseUrl(self.props.server_url.to_string()));
         headers.set(XAcrolinxClientLocale(self.props.locale.to_string()));
         headers.set(XAcrolinxClient(format!("{}; {}", self.props.client.signature, self.props.client.version)));
+        if let Some(token) = token {
+            headers.set(XAcrolinxAuth(token.to_string()));
+        }
         headers
     }
 
