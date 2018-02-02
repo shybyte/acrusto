@@ -11,9 +11,8 @@ extern crate clap;
 extern crate hyper;
 
 
-mod api;
 mod config;
-mod checking_types;
+mod api;
 
 use std::env;
 use clap::{Arg, App, SubCommand};

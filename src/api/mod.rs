@@ -8,7 +8,9 @@ use std::thread;
 
 use serde_json;
 
-use checking_types::*;
+mod checking_types;
+
+use self::checking_types::*;
 
 header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
 header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }
