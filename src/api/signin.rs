@@ -34,7 +34,6 @@ pub struct SigninLinks {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
 pub struct SigninRequest {
-    pub clientName: String,
 }
 
 #[allow(non_snake_case)]

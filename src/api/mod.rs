@@ -51,7 +51,7 @@ impl AcroApi {
 
     pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
         let url = self.props.server_url.clone() + "/api/v1/auth/sign-ins";
-        let body = SigninRequest { clientName: self.props.client.name.to_string() };
+        let body = SigninRequest {};
         self.post(&url, &body, self.create_signin_headers(options))?.json()
     }
 
