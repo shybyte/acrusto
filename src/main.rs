@@ -18,8 +18,11 @@ use std::env;
 use clap::{Arg, App, SubCommand};
 use api::{AcroApi, AcroApiProps, ClientInformation};
 use api::signin::{SigninOptions, SsoOptions};
+use api::checking::CheckRequest;
 use api::signin::SigninRequestResponse::*;
 use config::Config;
+use std::fs::File;
+use std::io::prelude::*;
 
 
 fn connect<S: Into<String>>(server_url: S) -> AcroApi {
@@ -40,6 +43,25 @@ fn server_info(server_address: &str, token_option: Option<&str>) {
     println!("{:?}", api.server_version());
     if let Some(token) = token_option {
         println!("{:?}", api.get_checking_capabilities(token));
+    }
+}
+
+fn check(server_address: &str, filename: &str, token_option: Option<&str>) {
+    let api = connect(server_address);
+    println!("{:?}", api.server_version());
+    if let Some(token) = token_option {
+        println!("{:?}", api.get_checking_capabilities(token));
+
+        let mut f = File::open(filename).expect("File not found");
+
+        let mut file_content = String::new();
+        f.read_to_string(&mut file_content);
+
+        eprintln!("file_content = {:?}", file_content);
+
+        let res = api.check(token, & CheckRequest { content: file_content });
+
+        eprintln!("res = {:?}", res);
     }
 }
 
@@ -86,13 +108,28 @@ static USER_ID_ARG: &str = "USER_ID";
 static PASSWORD_ARG: &str = "PASSWORD";
 static AUTH_TOKEN_ARG: &str = "authToken";
 
+static DOCUMENT_ARG: &str = "DOCUMENT";
+
 static SUB_COMMAND_SIGN_IN: &str = "signin";
 static SUB_COMMAND_SSO: &str = "sso";
 static SUB_COMMAND_INFO: &str = "info";
+static SUB_COMMAND_CHECK: &str = "check";
 
 
 fn main() {
     let config = Config::read().unwrap();
+    let auth_token_option = {
+        let arg = Arg::with_name(AUTH_TOKEN_ARG)
+            .short("a")
+            .long(AUTH_TOKEN_ARG)
+            .help("Use an authToken")
+            .takes_value(true);
+        if let Some(ref auth_token) = config.authToken {
+            arg.default_value(auth_token)
+        } else {
+            arg
+        }
+    };
 
     let mut command_line_parser = App::new("acrusto")
         .version(crate_version!())
@@ -106,25 +143,17 @@ fn main() {
                 arg
             }
         })
-        .arg({
-            let arg = Arg::with_name(AUTH_TOKEN_ARG)
-                .short("a")
-                .long(AUTH_TOKEN_ARG)
-                .help("Use an authToken")
-                .takes_value(true);
-            if let Some(ref auth_token) = config.authToken {
-                arg.default_value(auth_token)
-            } else {
-                arg
-            }
-        })
+        .arg(auth_token_option.clone())
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN).about("Signin to Acrolinx"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_INFO).about("Show server information"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_SSO)
             .about("Signin to Acrolinx by SSO")
             .arg(Arg::with_name(USER_ID_ARG).required(true).index(2))
             .arg(Arg::with_name(PASSWORD_ARG).required(true).index(3))
-        );
+        ).subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
+        .about("Check a document")
+        .arg(Arg::with_name(DOCUMENT_ARG).required(true).index(1))
+    );
 
     let args: Vec<_> = env::args().collect();
     if args.len() < 2 {
@@ -146,5 +175,9 @@ fn main() {
         let password = command_matches.value_of(PASSWORD_ARG).unwrap();
         eprintln!("sso {:?} {:?} {:?}", server_address, user_id, password);
         sso_command(server_address, user_id, password);
+    } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
+        let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
+        eprintln!("sso {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
+        check(server_address, document_file_name, auth_token_option);
     }
 }

@@ -20,15 +20,15 @@ pub struct CheckingCapabilities {
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
-struct CheckRequest {
-    content: String,
+pub struct CheckRequest {
+    pub content: String,
 }
 
 type CheckId = String;
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-struct CheckResponse {
-    id: CheckId,
+pub struct CheckResponse {
+    pub id: CheckId,
 }
 

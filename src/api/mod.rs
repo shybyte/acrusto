@@ -54,12 +54,17 @@ impl AcroApi {
     pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
         let url = self.props.server_url.clone() + "/api/v1/auth/sign-ins";
         let body = SigninRequest {};
-        self.post(&url, &body, self.create_signin_headers(options))?.json()
+        self.post(&url, &body, self.create_signin_headers(options), None)?.json()
     }
 
     pub fn get_checking_capabilities(&self, token: &str) -> Result<CheckingCapabilities, ApiError> {
         let url = self.props.server_url.clone() + "/api/v1/checking/capabilities";
         self.get(&url, Some(token))?.json().map_err(ApiError::from)
+    }
+
+    pub fn check(&self, token: &str, checkRequest: &CheckRequest) -> Result<CheckResponse, ApiError> {
+        let url = self.props.server_url.clone() + "/api/v1/checking/submit";
+        self.post(&url, &checkRequest, Headers::new(), Some(token))?.json().map_err(ApiError::from)
     }
 
     pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, ApiError> {
@@ -100,12 +105,12 @@ impl AcroApi {
         }
     }
 
-    fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers) -> reqwest::Result<reqwest::Response>
+    fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers, token: Option<&str>) -> reqwest::Result<reqwest::Response>
         where B: serde::Serialize
     {
         let response = reqwest::Client::new()
             .post(url)
-            .headers(self.create_common_headers(None))
+            .headers(self.create_common_headers(token))
             .headers(headers)
             .body(serde_json::to_string(&body).unwrap())
             .send();
