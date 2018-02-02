@@ -8,106 +8,24 @@ use std::thread;
 
 use serde_json;
 
-mod checking_types;
+pub mod checking;
+pub mod errors;
+pub mod server_info;
+pub mod signin;
 
-use self::checking_types::*;
+use self::checking::*;
+use self::server_info::*;
+use self::signin::*;
 
 header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
 header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }
 header! { (XAcrolinxBaseUrl, "X-Acrolinx-Base-Url") => [String] }
 header! { (XAcrolinxClient, "X-Acrolinx-Client") => [String] }
 
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct ServerVersionInfo {
-    version: String,
-    buildNumber: String,
-    buildDate: String,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Debug)]
-struct SigninRequest {
-    clientName: String,
-}
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-#[serde(untagged)]
-pub enum SigninRequestResponse {
-    SigninLinks(SigninLinksResponse),
-    LoggedIn(LoggedInResponse),
-}
-
-#[allow(non_snake_case)]
-#[derive(Debug)]
-pub enum PollInteractiveSigninResponse {
-    PollMoreResult(PollMoreResult),
-    LoggedIn(LoggedInResponse),
-}
-
-#[derive(Debug)]
-pub struct PollMoreResult {
-    retry_after: Duration
-}
-
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct SigninLinksResponse {
-    pub interactiveLinkTimeout: u64,
-    pub links: SigninLinks,
-}
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct LoggedInResponse {
-    pub authToken: String,
-    pub userId: String,
-    pub authorizedUsing: AuthorizationType,
-    pub privileges: Vec<String>,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Deserialize, Debug)]
-pub enum AuthorizationType {
-    ACROLINX_SSO,
-    ACROLINX_SIGN_IN,
-    ACROLINX_TOKEN,
-}
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct SigninLinks {
-    pub interactive: String,
-    poll: String,
-}
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct ApiError {
-    pub message: String,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct SsoOptions {
-    pub username_key: Option<String>,
-    pub password_key: Option<String>,
-    pub user_id: Option<String>,
-    pub password: Option<String>,
-}
-
-
-pub enum SigninOptions {
-    Sso(SsoOptions),
-    Token(String),
-    InteractiveSignin,
-}
 
 pub struct AcroApi {
     props: AcroApiProps
 }
-
 
 pub struct AcroApiProps {
     pub server_url: String,
@@ -120,7 +38,6 @@ pub struct ClientInformation {
     pub version: String,
     pub signature: String,
 }
-
 
 impl AcroApi {
     pub fn new(props: AcroApiProps) -> Self {

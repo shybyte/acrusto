@@ -1,8 +1,8 @@
-pub type GoalId = String;
-pub type TermSetId = String;
+//pub type GoalId = String;
+//pub type TermSetId = String;
 pub type AudienceId = String;
 pub type LanguageId = String;
-pub type ContentFormatId = String;
+//pub type ContentFormatId = String;
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]

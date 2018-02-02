@@ -16,8 +16,9 @@ mod api;
 
 use std::env;
 use clap::{Arg, App, SubCommand};
-use api::{AcroApi, SigninOptions, SsoOptions, AcroApiProps, ClientInformation};
-use api::SigninRequestResponse::*;
+use api::{AcroApi, AcroApiProps, ClientInformation};
+use api::signin::{SigninOptions, SsoOptions};
+use api::signin::SigninRequestResponse::*;
 use config::Config;
 
 
