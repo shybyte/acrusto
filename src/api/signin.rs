@@ -45,15 +45,17 @@ pub enum SigninRequestResponse {
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug)]
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
 pub enum PollInteractiveSigninResponse {
     PollMoreResult(PollMoreResult),
     LoggedIn(LoggedInResponse),
 }
 
-#[derive(Debug)]
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
 pub struct PollMoreResult {
-    pub retry_after: Duration
+    pub retryAfter: u64
 }
 
 

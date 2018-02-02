@@ -16,6 +16,7 @@ pub mod signin;
 use self::checking::*;
 use self::server_info::*;
 use self::signin::*;
+use self::errors::ApiError;
 
 header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
 header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }
@@ -44,9 +45,10 @@ impl AcroApi {
         AcroApi { props }
     }
 
-    pub fn server_version(&self) -> Result<ServerVersionInfo, Error> {
+    pub fn server_version(&self) -> Result<ServerVersionInfo, ApiError> {
         let url = self.props.server_url.clone() + "/iq/services/v3/rest/core/serverVersion";
-        self.get(&url, None)?.json()
+        let server_info = self.get(&url, None)?.json()?;
+        Ok(server_info)
     }
 
     pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
@@ -55,31 +57,19 @@ impl AcroApi {
         self.post(&url, &body, self.create_signin_headers(options))?.json()
     }
 
-    pub fn get_checking_capabilities(&self, token: &str) -> Result<CheckingCapabilities, Error> {
+    pub fn get_checking_capabilities(&self, token: &str) -> Result<CheckingCapabilities, ApiError> {
         let url = self.props.server_url.clone() + "/api/v1/checking/capabilities";
-        self.get(&url, Some(token))?.json()
+        self.get(&url, Some(token))?.json().map_err(ApiError::from)
     }
 
-    pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, Error> {
+    pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, ApiError> {
         if let Some(pm) = poll_more {
-            thread::sleep(pm.retry_after);
+            thread::sleep(Duration::from_secs(pm.retryAfter));
         }
-
-        let mut res = self.get(&signin_links.poll, None)?;
-
-        if res.status() == StatusCode::Accepted {
-            let retry_after: &RetryAfter = res.headers().get::<RetryAfter>().unwrap();
-            let retry_duration = match *retry_after {
-                RetryAfter::Delay(duration) => duration,
-                _ => Duration::from_secs(1)
-            };
-            Ok(PollInteractiveSigninResponse::PollMoreResult(PollMoreResult { retry_after: retry_duration }))
-        } else {
-            res.json().map(PollInteractiveSigninResponse::LoggedIn)
-        }
+        self.get(&signin_links.poll, None)?.json().map_err(ApiError::from)
     }
 
-    pub fn wait_for_signin(&self, signin_links: &SigninLinks) -> Result<LoggedInResponse, Error> {
+    pub fn wait_for_signin(&self, signin_links: &SigninLinks) -> Result<LoggedInResponse, ApiError> {
         let mut res = self.poll_for_signin(signin_links, None)?;
 
         while let PollInteractiveSigninResponse::PollMoreResult(poll_more) = res {
@@ -94,11 +84,20 @@ impl AcroApi {
         }
     }
 
-    fn get<U: reqwest::IntoUrl>(&self, url: U, token: Option<&str>) -> reqwest::Result<reqwest::Response> {
+    fn get_raw<U: reqwest::IntoUrl>(&self, url: U, token: Option<&str>) -> reqwest::Result<reqwest::Response> {
         reqwest::Client::new()
             .get(url)
             .headers(self.create_common_headers(token))
             .send()
+    }
+
+    fn get<U: reqwest::IntoUrl>(&self, url: U, token: Option<&str>) -> Result<reqwest::Response, ApiError> {
+        let mut response = self.get_raw(url, token)?;
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            Err(response.json()?)
+        }
     }
 
     fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers) -> reqwest::Result<reqwest::Response>
