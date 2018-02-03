@@ -14,7 +14,10 @@ extern crate hyper;
 mod config;
 mod api;
 
+
 use std::env;
+use std::time::Duration;
+use std::thread;
 use clap::{Arg, App, SubCommand};
 use api::{AcroApi, AcroApiProps, ClientInformation};
 use api::signin::{SigninOptions, SsoOptions};
@@ -41,28 +44,38 @@ fn connect<S: Into<String>>(server_url: S) -> AcroApi {
 fn server_info(server_address: &str, token_option: Option<&str>) {
     let api = connect(server_address);
     println!("{:?}", api.server_version());
-    if let Some(token) = token_option {
-        println!("{:?}", api.get_checking_capabilities(token));
+    if token_option.is_some() {
+        println!("{:?}", api.get_checking_capabilities(token_option));
     }
 }
 
-fn check(server_address: &str, filename: &str, token_option: Option<&str>) {
+fn check(server_address: &str, filename: &str, token: Option<&str>) {
     let api = connect(server_address);
     println!("{:?}", api.server_version());
-    if let Some(token) = token_option {
-        println!("{:?}", api.get_checking_capabilities(token));
+    println!("{:?}", api.get_checking_capabilities(token));
 
-        let mut f = File::open(filename).expect("File not found");
+    let mut f = File::open(filename).expect("File not found");
 
-        let mut file_content = String::new();
-        f.read_to_string(&mut file_content);
+    let mut file_content = String::new();
+    f.read_to_string(&mut file_content).expect("Problem reading document");
 
-        eprintln!("file_content = {:?}", file_content);
+    eprintln!("file_content = {:?}", file_content);
 
-        let res = api.check(token, & CheckRequest { content: file_content });
+    let check = api.check(token, &CheckRequest { content: file_content }).unwrap();
 
-        eprintln!("res = {:?}", res);
+    let mut checking_status;
+    loop {
+        checking_status = api.get_checking_status(token, &check).unwrap();
+        if checking_status.state == "done" {
+            break;
+        }
+        eprintln!("checking_status = {:?}", checking_status);
+        thread::sleep(Duration::from_secs(1));
     }
+
+    let check_result = api.get_checking_result(token, &check).unwrap();
+
+    eprintln!("check_result = {:?}", check_result);
 }
 
 fn signin_command(server_address: &str, auth_token_option: Option<String>) {

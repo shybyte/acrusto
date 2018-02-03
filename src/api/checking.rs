@@ -30,5 +30,45 @@ type CheckId = String;
 #[derive(Deserialize, Debug)]
 pub struct CheckResponse {
     pub id: CheckId,
+    pub links: CheckResponseLinks
 }
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckResponseLinks {
+    pub status: String,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckingStatus {
+    pub id: CheckId,
+    pub state: String,
+    pub percent: f64,
+    pub message: String,
+    pub links: CheckingStatusLinks
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckingStatusLinks {
+    pub result: String,
+}
+
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckResult {
+    pub id: CheckId,
+    pub quality: CheckResultQuality
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckResultQuality {
+    pub score: f64,
+    pub status: String,
+}
+
+
 

@@ -1,12 +1,13 @@
 use reqwest;
-use reqwest::{Error, StatusCode};
-use reqwest::header::{ContentType, Headers, UserAgent, RetryAfter};
+use reqwest::{Error};
+use reqwest::header::{ContentType, Headers, UserAgent};
 use reqwest::mime::APPLICATION_JSON;
 use serde;
 use std::time::Duration;
 use std::thread;
 
 use serde_json;
+use serde::de::DeserializeOwned;
 
 pub mod checking;
 pub mod errors;
@@ -57,14 +58,21 @@ impl AcroApi {
         self.post(&url, &body, self.create_signin_headers(options), None)?.json()
     }
 
-    pub fn get_checking_capabilities(&self, token: &str) -> Result<CheckingCapabilities, ApiError> {
-        let url = self.props.server_url.clone() + "/api/v1/checking/capabilities";
-        self.get(&url, Some(token))?.json().map_err(ApiError::from)
+    pub fn get_checking_capabilities(&self, token: Option<&str>) -> Result<CheckingCapabilities, ApiError> {
+        self.get_from_path("/api/v1/checking/capabilities", token)
     }
 
-    pub fn check(&self, token: &str, checkRequest: &CheckRequest) -> Result<CheckResponse, ApiError> {
+    pub fn check(&self, token: Option<&str>, check_request: &CheckRequest) -> Result<CheckResponse, ApiError> {
         let url = self.props.server_url.clone() + "/api/v1/checking/submit";
-        self.post(&url, &checkRequest, Headers::new(), Some(token))?.json().map_err(ApiError::from)
+        self.post(&url, &check_request, Headers::new(), token)?.json().map_err(ApiError::from)
+    }
+
+    pub fn get_checking_status(&self, token: Option<&str>, check_response: &CheckResponse) -> Result<CheckingStatus, ApiError> {
+        self.get(&check_response.links.status, token)?.json().map_err(ApiError::from)
+    }
+
+    pub fn get_checking_result(&self, token: Option<&str>, check_response: &CheckResponse) -> Result<CheckResult, ApiError> {
+        self.get_from_path(&format!("/api/v1/checking/{}/result", check_response.id), token)
     }
 
     pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, ApiError> {
@@ -103,6 +111,11 @@ impl AcroApi {
         } else {
             Err(response.json()?)
         }
+    }
+
+    fn get_from_path<T: DeserializeOwned>(&self, path: &str, token: Option<&str>) -> Result<T, ApiError> {
+        let mut res = self.get(&(self.props.server_url.clone() + path), token)?;
+        res.json().map_err(ApiError::from)
     }
 
     fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers, token: Option<&str>) -> reqwest::Result<reqwest::Response>

@@ -1,6 +1,3 @@
-use std::time::Duration;
-
-
 #[derive(Deserialize, Debug, Default)]
 pub struct SsoOptions {
     pub username_key: Option<String>,
@@ -8,7 +5,6 @@ pub struct SsoOptions {
     pub user_id: Option<String>,
     pub password: Option<String>,
 }
-
 
 pub enum SigninOptions {
     Sso(SsoOptions),
