@@ -21,10 +21,11 @@ use std::thread;
 use clap::{Arg, App, SubCommand};
 use api::{AcroApi, AcroApiProps, ClientInformation};
 use api::signin::{SigninOptions, SsoOptions};
-use api::checking::CheckRequest;
+use api::checking::{CheckRequest, DocumentInfo};
 use api::signin::SigninRequestResponse::*;
 use config::Config;
 use std::fs::File;
+use std::fs;
 use std::io::prelude::*;
 
 
@@ -55,13 +56,18 @@ fn check(server_address: &str, filename: &str, token: Option<&str>) {
     println!("{:?}", api.get_checking_capabilities(token));
 
     let mut f = File::open(filename).expect("File not found");
-
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
-
     eprintln!("file_content = {:?}", file_content);
 
-    let check = api.check(token, &CheckRequest { content: file_content }).unwrap();
+    let check_request = CheckRequest {
+        content: file_content,
+        document: Some(DocumentInfo {
+            reference: fs::canonicalize(filename).ok()
+                .map(|path| path.to_string_lossy().into_owned())
+        }),
+    };
+    let check = api.check(token, &check_request).unwrap();
 
     let mut checking_status;
     loop {

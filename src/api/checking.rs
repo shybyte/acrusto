@@ -19,10 +19,18 @@ pub struct CheckingCapabilities {
 }
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Default)]
 pub struct CheckRequest {
     pub content: String,
+    pub document: Option<DocumentInfo>
 }
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Debug)]
+pub struct DocumentInfo {
+    pub reference: Option<String>
+}
+
 
 type CheckId = String;
 
