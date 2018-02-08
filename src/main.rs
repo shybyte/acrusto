@@ -122,6 +122,20 @@ fn sso_command<S: Into<String>>(server_address: &str, user_id: S, password: S) {
     println!("signin_response = {:?}", signin_response);
 }
 
+fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a Option<String>) -> Arg<'a, 'b> {
+    let arg = Arg::with_name(name)
+        .long(name)
+        .env(env_var_name);
+
+    let arg = if let &Some(ref default_value) = default_option {
+        arg.default_value(default_value)
+    } else {
+        arg
+    };
+
+    arg
+}
+
 static SERVER_ADDRESS_ARG: &str = "serverAddress";
 static USER_ID_ARG: &str = "USER_ID";
 static PASSWORD_ARG: &str = "PASSWORD";
@@ -137,32 +151,22 @@ static SUB_COMMAND_CHECK: &str = "check";
 
 fn main() {
     let config = Config::read().unwrap();
-    let auth_token_option = {
-        let arg = Arg::with_name(AUTH_TOKEN_ARG)
-            .short("a")
-            .long(AUTH_TOKEN_ARG)
-            .help("Use an authToken")
-            .takes_value(true);
-        if let Some(ref auth_token) = config.authToken {
-            arg.default_value(auth_token)
-        } else {
-            arg
-        }
-    };
+
+    let auth_token_arg = create_arg(AUTH_TOKEN_ARG, "ACROLINX_AUTH_TOKEN", &config.authToken)
+        .short("a")
+        .help("Use an authToken")
+        .takes_value(true);
+
+    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, "ACROLINX_SERVER_ADDRESS", &config.serverAddress)
+        .required(true)
+        .takes_value(true);
 
     let mut command_line_parser = App::new("acrusto")
         .version(crate_version!())
         .author("Marco Stahl <shybyte@gmail.com>")
         .about("Unofficial commandline tool for the Acrolinx Platform API")
-        .arg({
-            let arg = Arg::with_name(SERVER_ADDRESS_ARG).required(true).long(SERVER_ADDRESS_ARG).takes_value(true);
-            if let Some(ref server_address) = config.serverAddress {
-                arg.default_value(server_address)
-            } else {
-                arg
-            }
-        })
-        .arg(auth_token_option.clone())
+        .arg(server_address_arg)
+        .arg(auth_token_arg)
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN).about("Signin to Acrolinx"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_INFO).about("Show server information"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_SSO)
