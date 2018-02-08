@@ -1,15 +1,34 @@
-//pub type GoalId = String;
-//pub type TermSetId = String;
+pub type GoalId = String;
 pub type AudienceId = String;
-pub type LanguageId = String;
-//pub type ContentFormatId = String;
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct Audience {
     id: AudienceId,
     displayName: String,
-    language: LanguageId,
+    language: Language,
+    termSets: Vec<TermSet>,
+    goals: Vec<Goal>,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct Language {
+    displayName: String,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct Goal {
+    id: GoalId,
+    displayName: String,
+    color: String
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct TermSet {
+    displayName: String,
 }
 
 #[allow(non_snake_case)]
