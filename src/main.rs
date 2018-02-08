@@ -127,13 +127,11 @@ fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a 
         .long(name)
         .env(env_var_name);
 
-    let arg = if let &Some(ref default_value) = default_option {
+    if let Some(ref default_value) = *default_option {
         arg.default_value(default_value)
     } else {
         arg
-    };
-
-    arg
+    }
 }
 
 static SERVER_ADDRESS_ARG: &str = "serverAddress";
