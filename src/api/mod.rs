@@ -1,5 +1,5 @@
 use reqwest;
-use reqwest::{Error};
+use reqwest::Error;
 use reqwest::header::{ContentType, Headers, UserAgent};
 use reqwest::mime::APPLICATION_JSON;
 use serde;
@@ -13,11 +13,15 @@ pub mod checking;
 pub mod errors;
 pub mod server_info;
 pub mod signin;
+pub mod common_types;
 
 use self::checking::*;
 use self::server_info::*;
 use self::signin::*;
 use self::errors::ApiError;
+use api::common_types::InternalApiResponse;
+use api::common_types::SuccessResponse;
+use api::common_types::ApiPollResponse;
 
 header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
 header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }
@@ -26,7 +30,8 @@ header! { (XAcrolinxClient, "X-Acrolinx-Client") => [String] }
 
 
 pub struct AcroApi {
-    props: AcroApiProps
+    props: AcroApiProps,
+    authentication: Option<String>
 }
 
 pub struct AcroApiProps {
@@ -42,44 +47,53 @@ pub struct ClientInformation {
 }
 
 impl AcroApi {
-    pub fn new(props: AcroApiProps) -> Self {
-        AcroApi { props }
+    pub fn new(props: AcroApiProps, authentication: Option<&str>) -> Self {
+        AcroApi { props, authentication: authentication.map(|s| s.to_string()) }
     }
 
     pub fn server_version(&self) -> Result<ServerVersionInfo, ApiError> {
         let url = self.props.server_url.clone() + "/iq/services/v3/rest/core/serverVersion";
-        let server_info = self.get(&url, None)?.json()?;
+        let server_info = self.get(&url)?.json()?;
         Ok(server_info)
     }
 
     pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
         let url = self.props.server_url.clone() + "/api/v1/auth/sign-ins";
         let body = SigninRequest {};
-        self.post(&url, &body, self.create_signin_headers(options), None)?.json()
+        self.post(&url, &body, self.create_signin_headers(options))?.json()
     }
 
-    pub fn get_checking_capabilities(&self, token: Option<&str>) -> Result<CheckingCapabilities, ApiError> {
-        self.get_from_path("/api/v1/checking/capabilities", token)
+    pub fn get_checking_capabilities(&self) -> Result<CheckingCapabilities, ApiError> {
+        let ir: InternalApiResponse<CheckingCapabilities, CheckingCapabilitiesLinks> =
+            self.get_from_path("/api/v1/checking/capabilities")?;
+        match ir {
+            InternalApiResponse::SuccessResponse(s) => Ok(s.data),
+            InternalApiResponse::ProgressResponse(_) => Err(ApiError {
+                _type: "unexpected_progress".to_string(),
+                title: "Unexpected Progress".to_string(),
+                detail: "Unexpected Progress".to_string(),
+                status: None,
+            }),
+            InternalApiResponse::ErrorResponse(error) => Err(error.error)
+        }
     }
 
-    pub fn check(&self, token: Option<&str>, check_request: &CheckRequest) -> Result<CheckResponse, ApiError> {
-        let url = self.props.server_url.clone() + "/api/v1/checking/submit";
-        self.post(&url, &check_request, Headers::new(), token)?.json().map_err(ApiError::from)
+    pub fn check(&self, check_request: &CheckRequest)
+                 -> Result<SuccessResponse<CheckResponse, CheckResponseLinks>, ApiError> {
+        let url = self.props.server_url.clone() + "/api/v1/checking/checks";
+        self.post(&url, &check_request, Headers::new())?.json().map_err(ApiError::from)
     }
 
-    pub fn get_checking_status(&self, token: Option<&str>, check_response: &CheckResponse) -> Result<CheckingStatus, ApiError> {
-        self.get(&check_response.links.status, token)?.json().map_err(ApiError::from)
-    }
-
-    pub fn get_checking_result(&self, token: Option<&str>, check_response: &CheckResponse) -> Result<CheckResult, ApiError> {
-        self.get_from_path(&format!("/api/v1/checking/{}/result", check_response.id), token)
+    pub fn get_checking_result(&self, check_response_links: &CheckResponseLinks)
+        -> Result<ApiPollResponse<CheckResult, CheckResultLinks>, ApiError> {
+        self.get(&check_response_links.result)?.json().map_err(ApiError::from)
     }
 
     pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, ApiError> {
         if let Some(pm) = poll_more {
             thread::sleep(Duration::from_secs(pm.retryAfter));
         }
-        self.get(&signin_links.poll, None)?.json().map_err(ApiError::from)
+        self.get(&signin_links.poll)?.json().map_err(ApiError::from)
     }
 
     pub fn wait_for_signin(&self, signin_links: &SigninLinks) -> Result<LoggedInResponse, ApiError> {
@@ -97,15 +111,15 @@ impl AcroApi {
         }
     }
 
-    fn get_raw<U: reqwest::IntoUrl>(&self, url: U, token: Option<&str>) -> reqwest::Result<reqwest::Response> {
+    fn get_raw<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::Result<reqwest::Response> {
         reqwest::Client::new()
             .get(url)
-            .headers(self.create_common_headers(token))
+            .headers(self.create_common_headers())
             .send()
     }
 
-    fn get<U: reqwest::IntoUrl>(&self, url: U, token: Option<&str>) -> Result<reqwest::Response, ApiError> {
-        let mut response = self.get_raw(url, token)?;
+    fn get<U: reqwest::IntoUrl>(&self, url: U) -> Result<reqwest::Response, ApiError> {
+        let mut response = self.get_raw(url)?;
         if response.status().is_success() {
             Ok(response)
         } else {
@@ -113,17 +127,17 @@ impl AcroApi {
         }
     }
 
-    fn get_from_path<T: DeserializeOwned>(&self, path: &str, token: Option<&str>) -> Result<T, ApiError> {
-        let mut res = self.get(&(self.props.server_url.clone() + path), token)?;
+    fn get_from_path<T: DeserializeOwned>(&self, path: &str) -> Result<T, ApiError> {
+        let mut res = self.get(&(self.props.server_url.clone() + path))?;
         res.json().map_err(ApiError::from)
     }
 
-    fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers, token: Option<&str>) -> reqwest::Result<reqwest::Response>
+    fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers) -> reqwest::Result<reqwest::Response>
         where B: serde::Serialize
     {
         let response = reqwest::Client::new()
             .post(url)
-            .headers(self.create_common_headers(token))
+            .headers(self.create_common_headers())
             .headers(headers)
             .body(serde_json::to_string(&body).unwrap())
             .send();
@@ -133,16 +147,18 @@ impl AcroApi {
         response
     }
 
-    fn create_common_headers(&self, token: Option<&str>) -> Headers {
+    fn create_common_headers(&self) -> Headers {
         let mut headers = Headers::new();
         headers.set(UserAgent::new(self.props.client.name.clone()));
         headers.set(ContentType(APPLICATION_JSON));
         headers.set(XAcrolinxBaseUrl(self.props.server_url.to_string()));
         headers.set(XAcrolinxClientLocale(self.props.locale.to_string()));
         headers.set(XAcrolinxClient(format!("{}; {}", self.props.client.signature, self.props.client.version)));
-        if let Some(token) = token {
+
+        if let Some(ref token) = self.authentication  {
             headers.set(XAcrolinxAuth(token.to_string()));
         }
+
         headers
     }
 

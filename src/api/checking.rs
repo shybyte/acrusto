@@ -4,7 +4,7 @@ pub type AudienceId = String;
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct Audience {
-    id: AudienceId,
+    pub id: AudienceId,
     displayName: String,
     language: Language,
     termSets: Vec<TermSet>,
@@ -34,15 +34,29 @@ pub struct TermSet {
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct CheckingCapabilities {
-    audiences: Vec<Audience>,
+    pub audiences: Vec<Audience>,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckingCapabilitiesLinks {
 }
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug, Default)]
 pub struct CheckRequest {
     pub content: String,
-    pub document: Option<DocumentInfo>
+    pub document: Option<DocumentInfo>,
+    pub checkOptions: CheckOptions
 }
+
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Debug, Default)]
+pub struct CheckOptions {
+    pub audienceId: Option<String>
+}
+
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
@@ -57,28 +71,11 @@ type CheckId = String;
 #[derive(Deserialize, Debug)]
 pub struct CheckResponse {
     pub id: CheckId,
-    pub links: CheckResponseLinks
 }
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct CheckResponseLinks {
-    pub status: String,
-}
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct CheckingStatus {
-    pub id: CheckId,
-    pub state: String,
-    pub percent: f64,
-    pub message: String,
-    pub links: CheckingStatusLinks
-}
-
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct CheckingStatusLinks {
     pub result: String,
 }
 
@@ -86,9 +83,13 @@ pub struct CheckingStatusLinks {
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct CheckResult {
-    pub id: CheckId,
+    //pub id: u64,
     pub quality: CheckResultQuality
 }
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CheckResultLinks {}
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
@@ -96,6 +97,7 @@ pub struct CheckResultQuality {
     pub score: f64,
     pub status: String,
 }
+
 
 
 

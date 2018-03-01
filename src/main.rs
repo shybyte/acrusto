@@ -27,33 +27,36 @@ use config::Config;
 use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
+use api::common_types::ApiPollResponse;
+use api::checking::CheckOptions;
 
 
-fn connect<S: Into<String>>(server_url: S) -> AcroApi {
+fn connect<S: Into<String>>(server_url: S, token: Option<&str>) -> AcroApi {
     AcroApi::new(AcroApiProps {
         server_url: server_url.into(),
         locale: "en".to_string(),
         client: ClientInformation {
             name: "Acrusto".to_string(),
-            signature: "dummySignature".to_string(),
+            signature: "dummyClientSignature".to_string(),
             version: crate_version!().to_string(),
         },
-    })
+    }, token)
 }
 
 
 fn server_info(server_address: &str, token_option: Option<&str>) {
-    let api = connect(server_address);
+    let api = connect(server_address, token_option);
     println!("{:?}", api.server_version());
     if token_option.is_some() {
-        println!("{:?}", api.get_checking_capabilities(token_option));
+        println!("{:?}", api.get_checking_capabilities());
     }
 }
 
 fn check(server_address: &str, filename: &str, token: Option<&str>) {
-    let api = connect(server_address);
+    let api = connect(server_address, token);
     println!("{:?}", api.server_version());
-    println!("{:?}", api.get_checking_capabilities(token));
+    let capabilities = api.get_checking_capabilities().unwrap();
+    println!("{:?}", capabilities);
 
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
@@ -62,30 +65,36 @@ fn check(server_address: &str, filename: &str, token: Option<&str>) {
 
     let check_request = CheckRequest {
         content: file_content,
+        checkOptions: CheckOptions { audienceId: capabilities.audiences.first().map(|a| a.id.clone()) },
         document: Some(DocumentInfo {
             reference: fs::canonicalize(filename).ok()
                 .map(|path| path.to_string_lossy().into_owned())
         }),
     };
-    let check = api.check(token, &check_request).unwrap();
+    let check = api.check(&check_request).unwrap();
 
-    let mut checking_status;
+    let mut check_poll_response;
+    let check_result;
     loop {
-        checking_status = api.get_checking_status(token, &check).unwrap();
-        if checking_status.state == "done" {
-            break;
+        check_poll_response = api.get_checking_result(&check.links).unwrap();
+        eprintln!("check_poll_response = {:?}", check_poll_response);
+        match check_poll_response {
+            ApiPollResponse::SuccessResponse(s) => {
+                check_result = s.data;
+                break;
+            }
+            ApiPollResponse::ProgressResponse(p) => {
+                eprintln!("progress = {:?}", p.progress.percent);
+                thread::sleep(Duration::from_secs(p.progress.retryAfter));
+            }
         }
-        eprintln!("checking_status = {:?}", checking_status);
-        thread::sleep(Duration::from_secs(1));
     }
-
-    let check_result = api.get_checking_result(token, &check).unwrap();
 
     eprintln!("check_result = {:?}", check_result);
 }
 
 fn signin_command(server_address: &str, auth_token_option: Option<String>) {
-    let api = connect(server_address);
+    let api = connect(server_address, None);
 
     println!("Yeah, there is a server: {:?}", api.server_version());
 
@@ -111,7 +120,7 @@ fn signin_command(server_address: &str, auth_token_option: Option<String>) {
 }
 
 fn sso_command<S: Into<String>>(server_address: &str, user_id: S, password: S) {
-    let api = connect(server_address);
+    let api = connect(server_address, None);
     println!("Yeah, there is a server: {:?}", api.server_version());
     let signin_response = api.signin(SigninOptions::Sso(
         SsoOptions {
