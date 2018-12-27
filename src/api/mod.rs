@@ -1,7 +1,7 @@
 use reqwest;
 use reqwest::Error;
-use reqwest::header::{ContentType, Headers, UserAgent};
-use reqwest::mime::APPLICATION_JSON;
+use reqwest::header::{CONTENT_TYPE, USER_AGENT, HeaderName};
+use mime::APPLICATION_JSON;
 use serde;
 use std::time::Duration;
 use std::thread;
@@ -22,16 +22,17 @@ use self::errors::ApiError;
 use crate::api::common_types::InternalApiResponse;
 use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::ApiPollResponse;
+use hyper::HeaderMap;
+use std::str::FromStr;
 
-header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
-header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }
-header! { (XAcrolinxBaseUrl, "X-Acrolinx-Base-Url") => [String] }
-header! { (XAcrolinxClient, "X-Acrolinx-Client") => [String] }
-
+const HEADER_ACROLINX_CLIENT_LOCALE: &str = "X-Acrolinx-Client-Locale";
+const HEADER_ACROLINX_AUTH: &str = "X-Acrolinx-Auth";
+const HEADER_ACROLINX_BASE_URL: &str = "X-Acrolinx-Base-Url";
+const HEADER_ACROLINX_CLIENT: &str = "X-Acrolinx-Client";
 
 pub struct AcroApi {
     props: AcroApiProps,
-    authentication: Option<String>
+    authentication: Option<String>,
 }
 
 pub struct AcroApiProps {
@@ -81,11 +82,11 @@ impl AcroApi {
     pub fn check(&self, check_request: &CheckRequest)
                  -> Result<SuccessResponse<CheckResponse, CheckResponseLinks>, ApiError> {
         let url = self.props.server_url.clone() + "/api/v1/checking/checks";
-        self.post(&url, &check_request, Headers::new())?.json().map_err(ApiError::from)
+        self.post(&url, &check_request, HeaderMap::new())?.json().map_err(ApiError::from)
     }
 
     pub fn get_checking_result(&self, check_response_links: &CheckResponseLinks)
-        -> Result<ApiPollResponse<CheckResult, CheckResultLinks>, ApiError> {
+                               -> Result<ApiPollResponse<CheckResult, CheckResultLinks>, ApiError> {
         self.get(&check_response_links.result)?.json().map_err(ApiError::from)
     }
 
@@ -132,7 +133,7 @@ impl AcroApi {
         res.json().map_err(ApiError::from)
     }
 
-    fn post<U: reqwest::IntoUrl, B: ? Sized>(&self, url: U, body: &B, headers: Headers) -> reqwest::Result<reqwest::Response>
+    fn post<U: reqwest::IntoUrl, B: ?Sized>(&self, url: U, body: &B, headers: HeaderMap) -> reqwest::Result<reqwest::Response>
         where B: serde::Serialize
     {
         let response = reqwest::Client::new()
@@ -147,40 +148,37 @@ impl AcroApi {
         response
     }
 
-    fn create_common_headers(&self) -> Headers {
-        let mut headers = Headers::new();
-        headers.set(UserAgent::new(self.props.client.name.clone()));
-        headers.set(ContentType(APPLICATION_JSON));
-        headers.set(XAcrolinxBaseUrl(self.props.server_url.to_string()));
-        headers.set(XAcrolinxClientLocale(self.props.locale.to_string()));
-        headers.set(XAcrolinxClient(format!("{}; {}", self.props.client.signature, self.props.client.version)));
+    fn create_common_headers(&self) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(USER_AGENT, self.props.client.name.parse().unwrap());
+        headers.insert(CONTENT_TYPE, APPLICATION_JSON.to_string().parse().unwrap());
+        headers.insert(HEADER_ACROLINX_BASE_URL, self.props.server_url.parse().unwrap());
+        headers.insert(HEADER_ACROLINX_CLIENT_LOCALE, self.props.locale.parse().unwrap());
+        headers.insert(HEADER_ACROLINX_CLIENT, format!("{}; {}", self.props.client.signature, self.props.client.version).parse().unwrap());
 
-        if let Some(ref token) = self.authentication  {
-            headers.set(XAcrolinxAuth(token.to_string()));
+        if let Some(ref token) = self.authentication {
+            headers.insert(HEADER_ACROLINX_AUTH, token.parse().unwrap());
         }
 
         headers
     }
 
-    fn create_signin_headers(&self, options: SigninOptions) -> Headers {
-        let mut headers = Headers::new();
+    fn create_signin_headers(&self, options: SigninOptions) -> HeaderMap {
+        let mut headers = HeaderMap::new();
 
         match options {
             SigninOptions::Sso(sso_options) => {
                 if let Some(user_id) = sso_options.user_id {
-                    headers.set_raw(
-                        sso_options.username_key.unwrap_or_else(|| "username".to_string()),
-                        user_id,
-                    );
+                    let header_name = sso_options.username_key.as_ref().map_or("username", String::as_ref);
+                    headers.insert(HeaderName::from_str(header_name).unwrap(), user_id.parse().unwrap());
                 }
                 if let Some(password) = sso_options.password {
-                    headers.set_raw(
-                        sso_options.password_key.unwrap_or_else(|| "password".to_string()),
-                        password,
+                    let header_name = sso_options.password_key.as_ref().map_or("username", String::as_ref);
+                    headers.insert(HeaderName::from_str(header_name).unwrap(), password.parse().unwrap(),
                     );
                 }
             }
-            SigninOptions::Token(token) => headers.set(XAcrolinxAuth(token)),
+            SigninOptions::Token(token) => { headers.insert(HEADER_ACROLINX_AUTH, token.parse().unwrap()); }
             SigninOptions::InteractiveSignin => {}
         }
 

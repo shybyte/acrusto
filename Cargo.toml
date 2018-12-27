@@ -5,12 +5,13 @@ authors = ["shybyte <ein@volloeko.de>"]
 edition = "2018"
 
 [dependencies]
-reqwest = "0.8.2"
-serde = "1.0.27"
-serde_derive = "1.0.27"
-serde_json = "1.0"
-clap = "2.29.2"
-hyper = "0.11.x"
+reqwest = "0.9.5"
+serde = "1.0.82"
+serde_derive = "1.0.82"
+serde_json = "1.0.33"
+clap = "2.32.0"
+hyper = "0.12.19"
+mime = "0.3.12"
 dirs = "1.0.4"
 
 [profile.release]

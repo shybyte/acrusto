@@ -1,7 +1,3 @@
-#[macro_use]
-extern crate hyper;
-
-
 mod config;
 mod api;
 
