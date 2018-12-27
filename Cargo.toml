@@ -12,5 +12,5 @@ clap = "2.29.2"
 hyper = "0.11.x"
 
 [profile.release]
-#opt-level = "s"
+opt-level = "z"
 lto = true
