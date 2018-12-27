@@ -1,13 +1,4 @@
 #[macro_use]
-extern crate serde_derive;
-extern crate serde;
-extern crate serde_json;
-extern crate reqwest;
-
-#[macro_use]
-extern crate clap;
-
-#[macro_use]
 extern crate hyper;
 
 
@@ -27,6 +18,7 @@ use crate::config::Config;
 use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
+use clap::{crate_version};
 use crate::api::common_types::ApiPollResponse;
 use crate::api::checking::CheckOptions;
 

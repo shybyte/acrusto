@@ -1,9 +1,9 @@
 use std::path::Path;
 use std;
 use std::fs::File;
-use serde_json;
 use std::io::Read;
 use dirs::home_dir;
+use serde_derive::{Deserialize};
 
 type GenError = Box<std::error::Error>;
 

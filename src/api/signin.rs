@@ -1,3 +1,5 @@
+use serde_derive::{Deserialize, Serialize};
+
 #[derive(Deserialize, Debug, Default)]
 pub struct SsoOptions {
     pub username_key: Option<String>,

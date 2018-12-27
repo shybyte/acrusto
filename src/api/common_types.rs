@@ -1,3 +1,4 @@
+use serde_derive::{Deserialize};
 use crate::api::errors::ApiError;
 
 #[allow(non_snake_case)]

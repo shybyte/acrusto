@@ -1,3 +1,5 @@
+use serde_derive::{Deserialize, Serialize};
+
 pub type GoalId = String;
 pub type AudienceId = String;
 
