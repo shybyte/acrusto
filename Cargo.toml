@@ -2,6 +2,7 @@
 name = "acrusto"
 version = "0.1.0"
 authors = ["shybyte <ein@volloeko.de>"]
+edition = "2018"
 
 [dependencies]
 reqwest = "0.8.2"

@@ -19,9 +19,9 @@ use self::checking::*;
 use self::server_info::*;
 use self::signin::*;
 use self::errors::ApiError;
-use api::common_types::InternalApiResponse;
-use api::common_types::SuccessResponse;
-use api::common_types::ApiPollResponse;
+use crate::api::common_types::InternalApiResponse;
+use crate::api::common_types::SuccessResponse;
+use crate::api::common_types::ApiPollResponse;
 
 header! { (XAcrolinxClientLocale, "X-Acrolinx-Client-Locale") => [String] }
 header! { (XAcrolinxAuth, "X-Acrolinx-Auth") => [String] }

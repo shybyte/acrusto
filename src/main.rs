@@ -19,16 +19,16 @@ use std::env;
 use std::time::Duration;
 use std::thread;
 use clap::{Arg, App, SubCommand};
-use api::{AcroApi, AcroApiProps, ClientInformation};
-use api::signin::{SigninOptions, SsoOptions};
-use api::checking::{CheckRequest, DocumentInfo};
-use api::signin::SigninRequestResponse::*;
-use config::Config;
+use crate::api::{AcroApi, AcroApiProps, ClientInformation};
+use crate::api::signin::{SigninOptions, SsoOptions};
+use crate::api::checking::{CheckRequest, DocumentInfo};
+use crate::api::signin::SigninRequestResponse::*;
+use crate::config::Config;
 use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
-use api::common_types::ApiPollResponse;
-use api::checking::CheckOptions;
+use crate::api::common_types::ApiPollResponse;
+use crate::api::checking::CheckOptions;
 
 
 fn connect<S: Into<String>>(server_url: S, token: Option<&str>) -> AcroApi {
