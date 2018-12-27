@@ -3,7 +3,7 @@ use std;
 use std::fs::File;
 use serde_json;
 use std::io::Read;
-use std::env::home_dir;
+use dirs::home_dir;
 
 type GenError = Box<std::error::Error>;
 
