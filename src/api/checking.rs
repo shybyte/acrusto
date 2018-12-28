@@ -1,55 +1,90 @@
 use serde_derive::{Deserialize, Serialize};
 
 pub type GoalId = String;
+pub type ContentFormatId = String;
+pub type GoalIdString = String;
 pub type GuidanceProfileId = String;
+pub type ReferencePattern = String;
 
 #[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GuidanceProfile {
     pub id: GuidanceProfileId,
-    displayName: String,
+    displayName: GoalIdString,
     language: Language,
     termSets: Vec<TermSet>,
     goals: Vec<Goal>,
 }
 
 #[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Language {
     displayName: String,
 }
 
 #[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Goal {
     id: GoalId,
     displayName: String,
-    color: String
+    color: String,
 }
 
 #[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct TermSet {
     displayName: String,
 }
 
 #[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct CheckingCapabilities {
     pub guidanceProfiles: Vec<GuidanceProfile>,
+    pub contentFormats: Vec<ContentFormat>,
+    pub contentEncodings: Vec<ContentEncoding>,
+    pub checkTypes: Vec<CheckType>,
+    pub reportTypes: Vec<ReportType>,
+    pub referencePattern: ReferencePattern,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ContentFormat {
+    id: ContentFormatId,
+    displayName: String,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Deserialize, Serialize, Debug)]
+pub enum ContentEncoding {
+    base64,
+    none,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Deserialize, Serialize, Debug)]
+pub enum CheckType {
+    batch,
+    interactive,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Deserialize, Serialize, Debug)]
+pub enum ReportType {
+    scorecard,
+    extractedText,
 }
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-pub struct CheckingCapabilitiesLinks {
-}
+pub struct CheckingCapabilitiesLinks {}
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug, Default)]
 pub struct CheckRequest {
     pub content: String,
     pub document: Option<DocumentInfo>,
-    pub checkOptions: CheckOptions
+    pub checkOptions: CheckOptions,
 }
 
 

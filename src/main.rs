@@ -12,12 +12,12 @@ use crate::config::Config;
 use std::fs::File;
 use std::fs;
 use std::io::prelude::*;
-use clap::{crate_version};
+use clap::crate_version;
 use crate::api::common_types::ApiPollResponse;
 use crate::api::checking::CheckOptions;
 use log::{info, Level};
 use simple_logger;
-use lazy_static::{lazy_static};
+use lazy_static::lazy_static;
 
 static SERVER_ADDRESS_ARG: &str = "acrolinx-address";
 static ACCESS_TOKEN_ARG: &str = "access-token";
@@ -33,23 +33,26 @@ static DOCUMENT_ARG: &str = "DOCUMENT";
 
 static SUB_COMMAND_SIGN_IN: &str = "signin";
 static SUB_COMMAND_INFO: &str = "info";
+static SUB_COMMAND_CAPABILITIES: &str = "capabilities";
 static SUB_COMMAND_CHECK: &str = "check";
 
 fn main() {
-    let config = Config::read();
+    let default_config = Config::read();
 
-    let auth_token_arg = create_arg(ACCESS_TOKEN_ARG, &ACCESS_TOKEN_ENV_VAR, &config.access_token)
+    let auth_token_arg = create_arg(ACCESS_TOKEN_ARG, &ACCESS_TOKEN_ENV_VAR, &default_config.access_token)
         .short("t")
-        .help("Use an authToken")
+        .help("Sets an access token to authenticate a user. We recommend setting the access token as an environment variable.")
         .takes_value(true);
 
-    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, &SERVER_ADDRESS_ENV_VAR, &config.acrolinx_address)
+    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, &SERVER_ADDRESS_ENV_VAR, &default_config.acrolinx_address)
         .short("a")
         .required(true)
+        .help("Sets the URL of the Acrolinx Platform.")
         .takes_value(true);
 
     let silent_flag = create_arg(SILENT_FLAG, &SILENT_ENV_VAR, &None)
         .short("s")
+        .help("Restricts the console output to a minimum for scripting.")
         .takes_value(false);
 
     let mut command_line_parser = App::new("acrusto")
@@ -59,12 +62,16 @@ fn main() {
         .arg(server_address_arg)
         .arg(auth_token_arg)
         .arg(silent_flag)
-        .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN).about("Signin to Acrolinx"))
-        .subcommand(SubCommand::with_name(SUB_COMMAND_INFO).about("Show server information"))
+        .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN)
+            .about("Signs in to Acrolinx via the Sign-in page and gets an access token."))
+        .subcommand(SubCommand::with_name(SUB_COMMAND_INFO)
+            .about("Shows the Acrolinx Platform version and information."))
+        .subcommand(SubCommand::with_name(SUB_COMMAND_CAPABILITIES)
+            .about("Lists the available check settings."))
         .subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
-        .about("Check a document")
-        .arg(Arg::with_name(DOCUMENT_ARG).required(true).index(1))
-    );
+            .about("Checks the given file(s) with Acrolinx.")
+            .arg(Arg::with_name(DOCUMENT_ARG).required(true).index(1))
+        );
 
     let args: Vec<_> = env::args().collect();
     if args.len() < 2 {
@@ -85,6 +92,9 @@ fn main() {
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
         info!("info {:?} {:?}", server_address, auth_token_option);
         server_info(server_address, auth_token_option);
+    } else if matches.subcommand_matches(SUB_COMMAND_CAPABILITIES).is_some() {
+        info!("show_capabilities {:?} {:?}", server_address, auth_token_option);
+        show_capabilities(server_address, auth_token_option);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
         let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
         info!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
@@ -131,6 +141,14 @@ fn signin_command(server_address: &str, auth_token_option: Option<&str>) {
         }
     }
 }
+
+fn show_capabilities(server_address: &str, token: Option<&str>) {
+    let api = connect(server_address, token);
+    info!("{:?}", api.server_info());
+    let capabilities = api.get_checking_capabilities().unwrap();
+    println!("{}", serde_json::to_string_pretty(&capabilities).unwrap());
+}
+
 
 fn check(server_address: &str, filename: &str, token: Option<&str>) {
     let api = connect(server_address, token);

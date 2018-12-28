@@ -19,7 +19,6 @@ use self::checking::*;
 use self::server_info::*;
 use self::signin::*;
 use self::errors::ApiError;
-use crate::api::common_types::InternalApiResponse;
 use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::ApiPollResponse;
 use hyper::HeaderMap;
@@ -67,18 +66,7 @@ impl AcroApi {
     }
 
     pub fn get_checking_capabilities(&self) -> Result<CheckingCapabilities, ApiError> {
-        let ir: InternalApiResponse<CheckingCapabilities, CheckingCapabilitiesLinks> =
-            self.get_from_path("/api/v1/checking/capabilities")?;
-        match ir {
-            InternalApiResponse::SuccessResponse(s) => Ok(s.data),
-            InternalApiResponse::ProgressResponse(_) => Err(ApiError {
-                _type: "unexpected_progress".to_string(),
-                title: "Unexpected Progress".to_string(),
-                detail: "Unexpected Progress".to_string(),
-                status: None,
-            }),
-            InternalApiResponse::ErrorResponse(error) => Err(error.error)
-        }
+        self.get_data("/checking/capabilities")
     }
 
     pub fn check(&self, check_request: &CheckRequest)
@@ -143,15 +131,6 @@ impl AcroApi {
             let error_response: ErrorResponse = response_raw.json()?;
             Err(error_response.error)
         }
-    }
-
-
-    fn get_from_path<T: DeserializeOwned>(&self, path: &str) -> Result<T, ApiError> {
-        let mut res = self.get(&(self.props.server_url.clone() + path))?;
-        let text = res.text().unwrap();
-        info!("get_from_path = {:?}", text);
-        serde_json::from_str(text.as_ref()).map_err(ApiError::from)
-        // res.json().map_err(ApiError::from)
     }
 
     fn post<U: reqwest::IntoUrl, B: ?Sized>(&self, url: U, body: &B, headers: HeaderMap) -> reqwest::Result<reqwest::Response>
