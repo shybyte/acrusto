@@ -24,6 +24,7 @@ use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::ApiPollResponse;
 use hyper::HeaderMap;
 use std::str::FromStr;
+use crate::api::common_types::ErrorResponse;
 
 const HEADER_ACROLINX_CLIENT_LOCALE: &str = "X-Acrolinx-Client-Locale";
 const HEADER_ACROLINX_AUTH: &str = "X-Acrolinx-Auth";
@@ -122,15 +123,20 @@ impl AcroApi {
     fn get<U: reqwest::IntoUrl>(&self, url: U) -> Result<reqwest::Response, ApiError> {
         let mut response = self.get_raw(url)?;
         if response.status().is_success() {
+            eprintln!("response = {:?}", response);
             Ok(response)
         } else {
-            Err(response.json()?)
+            let error_response: ErrorResponse = response.json()?;
+            Err(error_response.error)
         }
     }
 
     fn get_from_path<T: DeserializeOwned>(&self, path: &str) -> Result<T, ApiError> {
         let mut res = self.get(&(self.props.server_url.clone() + path))?;
-        res.json().map_err(ApiError::from)
+        let text = res.text().unwrap();
+        eprintln!("get_from_path = {:?}", text);
+        serde_json::from_str(text.as_ref()).map_err(ApiError::from)
+        // res.json().map_err(ApiError::from)
     }
 
     fn post<U: reqwest::IntoUrl, B: ?Sized>(&self, url: U, body: &B, headers: HeaderMap) -> reqwest::Result<reqwest::Response>

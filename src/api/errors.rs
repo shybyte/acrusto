@@ -24,3 +24,14 @@ impl From<reqwest::Error> for ApiError {
         }
     }
 }
+
+impl From<serde_json::error::Error> for ApiError {
+    fn from(serde_error: serde_json::error::Error) -> ApiError {
+        ApiError {
+            _type: "SerdeError".to_string(),
+            title: serde_error.description().to_string(),
+            detail: serde_error.to_string(),
+            status: None
+        }
+    }
+}

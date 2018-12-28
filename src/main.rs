@@ -53,7 +53,7 @@ fn check(server_address: &str, filename: &str, token: Option<&str>) {
 
     let check_request = CheckRequest {
         content: file_content,
-        checkOptions: CheckOptions { audienceId: capabilities.audiences.first().map(|a| a.id.clone()) },
+        checkOptions: CheckOptions { guidanceProfileId: capabilities.guidanceProfiles.first().map(|a| a.id.clone()) },
         document: Some(DocumentInfo {
             reference: fs::canonicalize(filename).ok()
                 .map(|path| path.to_string_lossy().into_owned())
@@ -145,14 +145,14 @@ static SUB_COMMAND_CHECK: &str = "check";
 
 
 fn main() {
-    let config = Config::read().unwrap();
+    let config = Config::read();
 
-    let auth_token_arg = create_arg(AUTH_TOKEN_ARG, "ACROLINX_AUTH_TOKEN", &config.authToken)
+    let auth_token_arg = create_arg(AUTH_TOKEN_ARG, "ACROLINX_AUTH_TOKEN", &config.access_token)
         .short("a")
         .help("Use an authToken")
         .takes_value(true);
 
-    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, "ACROLINX_SERVER_ADDRESS", &config.serverAddress)
+    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, "ACROLINX_SERVER_ADDRESS", &config.acrolinx_address)
         .required(true)
         .takes_value(true);
 
@@ -183,19 +183,19 @@ fn main() {
     let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
-        eprintln!("signin {:?} {:?}", server_address, auth_token_option);
+        println!("signin {:?} {:?}", server_address, auth_token_option);
         signin_command(server_address, auth_token_option.map(|s| s.to_string()));
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
-        eprintln!("info {:?} {:?}", server_address, auth_token_option);
+        println!("info {:?} {:?}", server_address, auth_token_option);
         server_info(server_address, auth_token_option);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_SSO) {
         let user_id = command_matches.value_of(USER_ID_ARG).unwrap();
         let password = command_matches.value_of(PASSWORD_ARG).unwrap();
-        eprintln!("sso {:?} {:?} {:?}", server_address, user_id, password);
+        println!("sso {:?} {:?} {:?}", server_address, user_id, password);
         sso_command(server_address, user_id, password);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
         let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
-        eprintln!("sso {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
+        println!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
         check(server_address, document_file_name, auth_token_option);
     }
 }

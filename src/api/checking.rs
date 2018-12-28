@@ -1,12 +1,12 @@
 use serde_derive::{Deserialize, Serialize};
 
 pub type GoalId = String;
-pub type AudienceId = String;
+pub type GuidanceProfileId = String;
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-pub struct Audience {
-    pub id: AudienceId,
+pub struct GuidanceProfile {
+    pub id: GuidanceProfileId,
     displayName: String,
     language: Language,
     termSets: Vec<TermSet>,
@@ -36,7 +36,7 @@ pub struct TermSet {
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct CheckingCapabilities {
-    pub audiences: Vec<Audience>,
+    pub guidanceProfiles: Vec<GuidanceProfile>,
 }
 
 #[allow(non_snake_case)]
@@ -56,7 +56,7 @@ pub struct CheckRequest {
 #[allow(non_snake_case)]
 #[derive(Serialize, Debug, Default)]
 pub struct CheckOptions {
-    pub audienceId: Option<String>
+    pub guidanceProfileId: Option<String>
 }
 
 
