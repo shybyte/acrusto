@@ -131,6 +131,7 @@ fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a 
 }
 
 static SERVER_ADDRESS_ARG: &str = "serverAddress";
+static SILENT_FLAG: &str = "silent";
 static USER_ID_ARG: &str = "USER_ID";
 static PASSWORD_ARG: &str = "PASSWORD";
 static AUTH_TOKEN_ARG: &str = "authToken";
@@ -144,18 +145,21 @@ static SUB_COMMAND_CHECK: &str = "check";
 
 
 fn main() {
-    simple_logger::init_with_level(Level::Info).unwrap();
-
     let config = Config::read();
 
     let auth_token_arg = create_arg(AUTH_TOKEN_ARG, "ACROLINX_AUTH_TOKEN", &config.access_token)
-        .short("a")
+        .short("t")
         .help("Use an authToken")
         .takes_value(true);
 
     let server_address_arg = create_arg(SERVER_ADDRESS_ARG, "ACROLINX_SERVER_ADDRESS", &config.acrolinx_address)
+        .short("a")
         .required(true)
         .takes_value(true);
+
+    let silent_flag = create_arg(SILENT_FLAG, "ACROLINX_SILENT", &None)
+        .short("s")
+        .takes_value(false);
 
     let mut command_line_parser = App::new("acrusto")
         .version(crate_version!())
@@ -163,6 +167,7 @@ fn main() {
         .about("Unofficial commandline tool for the Acrolinx Platform API")
         .arg(server_address_arg)
         .arg(auth_token_arg)
+        .arg(silent_flag)
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN).about("Signin to Acrolinx"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_INFO).about("Show server information"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_SSO)
@@ -182,6 +187,10 @@ fn main() {
     let matches = command_line_parser.get_matches();
     let auth_token_option = matches.value_of(AUTH_TOKEN_ARG);
     let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
+
+    if !matches.is_present(SILENT_FLAG) {
+        simple_logger::init_with_level(Level::Info).ok();
+    }
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
         info!("signin {:?} {:?}", server_address, auth_token_option);

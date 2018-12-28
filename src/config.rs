@@ -5,7 +5,6 @@ use std::io::Read;
 use dirs::home_dir;
 use serde_derive::Deserialize;
 use envy;
-use log::{info};
 
 type GenError = Box<std::error::Error>;
 
@@ -19,8 +18,6 @@ pub struct Config {
 impl Config {
     pub fn read() -> Self {
         let config_from_env = envy::prefixed("ACROLINX_").from_env::<Config>().unwrap_or_default();
-        info!("config_from_env = {:?}", config_from_env);
-
 
         let config_from_file = home_dir().and_then(|mut path| {
             path.push(".config");
