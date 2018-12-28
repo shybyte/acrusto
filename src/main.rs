@@ -1,23 +1,20 @@
-mod config;
-mod api;
-
 use std::env;
-use std::time::Duration;
-use std::thread;
-use clap::{Arg, App, SubCommand};
-use crate::api::{AcroApi, AcroApiProps, ClientInformation};
-use crate::api::checking::{CheckRequest, DocumentInfo};
-use crate::api::signin::SigninRequestResponse::*;
-use crate::config::Config;
-use std::fs::File;
-use std::fs;
-use std::io::prelude::*;
+
+use clap::{App, Arg, SubCommand};
 use clap::crate_version;
-use crate::api::common_types::ApiPollResponse;
-use crate::api::checking::CheckOptions;
+use lazy_static::lazy_static;
 use log::{info, Level};
 use simple_logger;
-use lazy_static::lazy_static;
+
+use crate::commands::capabilities::show_capabilities;
+use crate::commands::check::check;
+use crate::commands::info::server_info;
+use crate::commands::signin::signin_command;
+use crate::config::Config;
+
+mod config;
+mod api;
+mod commands;
 
 static SERVER_ADDRESS_ARG: &str = "acrolinx-address";
 static ACCESS_TOKEN_ARG: &str = "access-token";
@@ -100,95 +97,6 @@ fn main() {
         info!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
         check(server_address, document_file_name, auth_token_option);
     }
-}
-
-
-fn connect<S: Into<String>>(server_url: S, token: Option<&str>) -> AcroApi {
-    AcroApi::new(AcroApiProps {
-        server_url: server_url.into(),
-        locale: "en".to_string(),
-        client: ClientInformation {
-            name: "Acrusto".to_string(),
-            signature: "dummyClientSignature".to_string(),
-            version: crate_version!().to_string(),
-        },
-    }, token)
-}
-
-
-fn server_info(server_address: &str, token_option: Option<&str>) {
-    let api = connect(server_address, token_option);
-    println!("{}", serde_json::to_string_pretty(&api.server_info().unwrap()).unwrap());
-}
-
-fn signin_command(server_address: &str, auth_token_option: Option<&str>) {
-    let api = connect(server_address, auth_token_option);
-
-    info!("Yeah, there is a server: {:?}", api.server_info());
-
-    let signin_response = api.signin().unwrap();
-    info!("signin_response = {:?}", signin_response);
-
-    match signin_response {
-        SigninLinks(signin_links_response) => {
-            info!("Please signin at {:?}", signin_links_response.links.interactive);
-            let logged_in = api.wait_for_signin(&signin_links_response.links).unwrap();
-            info!("authToken = {:?}", logged_in.authToken);
-            info!("You are logged in as {:?}", logged_in.userId);
-        }
-        LoggedIn(logged_in) => {
-            info!("You are already logged in as {:?} ", logged_in.userId);
-        }
-    }
-}
-
-fn show_capabilities(server_address: &str, token: Option<&str>) {
-    let api = connect(server_address, token);
-    info!("{:?}", api.server_info());
-    let capabilities = api.get_checking_capabilities().unwrap();
-    println!("{}", serde_json::to_string_pretty(&capabilities).unwrap());
-}
-
-
-fn check(server_address: &str, filename: &str, token: Option<&str>) {
-    let api = connect(server_address, token);
-    info!("{:?}", api.server_info());
-    let capabilities = api.get_checking_capabilities().unwrap();
-    info!("{:?}", capabilities);
-
-    let mut f = File::open(filename).expect("File not found");
-    let mut file_content = String::new();
-    f.read_to_string(&mut file_content).expect("Problem reading document");
-    info!("file_content = {:?}", file_content);
-
-    let check_request = CheckRequest {
-        content: file_content,
-        checkOptions: CheckOptions { guidanceProfileId: capabilities.guidanceProfiles.first().map(|a| a.id.clone()) },
-        document: Some(DocumentInfo {
-            reference: fs::canonicalize(filename).ok()
-                .map(|path| path.to_string_lossy().into_owned())
-        }),
-    };
-    let check = api.check(&check_request).unwrap();
-
-    let mut check_poll_response;
-    let check_result;
-    loop {
-        check_poll_response = api.get_checking_result(&check.links).unwrap();
-        info!("check_poll_response = {:?}", check_poll_response);
-        match check_poll_response {
-            ApiPollResponse::SuccessResponse(s) => {
-                check_result = s.data;
-                break;
-            }
-            ApiPollResponse::ProgressResponse(p) => {
-                info!("progress = {:?}", p.progress.percent);
-                thread::sleep(Duration::from_secs(p.progress.retryAfter));
-            }
-        }
-    }
-
-    info!("check_result = {:?}", check_result);
 }
 
 fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a Option<String>) -> Arg<'a, 'b> {
