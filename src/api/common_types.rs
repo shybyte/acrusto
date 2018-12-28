@@ -1,12 +1,20 @@
 use serde_derive::{Deserialize};
 use crate::api::errors::ApiError;
 
+pub type Locale = String;
+
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct SuccessResponse<Data, Links> {
     pub data: Data,
     pub links: Links,
 }
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct NoLinks {
+}
+
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]

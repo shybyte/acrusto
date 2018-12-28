@@ -17,6 +17,8 @@ use std::io::prelude::*;
 use clap::{crate_version};
 use crate::api::common_types::ApiPollResponse;
 use crate::api::checking::CheckOptions;
+use log::{info, Level};
+use simple_logger;
 
 
 fn connect<S: Into<String>>(server_url: S, token: Option<&str>) -> AcroApi {
@@ -34,22 +36,19 @@ fn connect<S: Into<String>>(server_url: S, token: Option<&str>) -> AcroApi {
 
 fn server_info(server_address: &str, token_option: Option<&str>) {
     let api = connect(server_address, token_option);
-    println!("{:?}", api.server_version());
-    if token_option.is_some() {
-        println!("{:?}", api.get_checking_capabilities());
-    }
+    println!("{}", serde_json::to_string_pretty(&api.server_info().unwrap()).unwrap());
 }
 
 fn check(server_address: &str, filename: &str, token: Option<&str>) {
     let api = connect(server_address, token);
-    println!("{:?}", api.server_version());
+    info!("{:?}", api.server_info());
     let capabilities = api.get_checking_capabilities().unwrap();
-    println!("{:?}", capabilities);
+    info!("{:?}", capabilities);
 
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
-    eprintln!("file_content = {:?}", file_content);
+    info!("file_content = {:?}", file_content);
 
     let check_request = CheckRequest {
         content: file_content,
@@ -65,26 +64,26 @@ fn check(server_address: &str, filename: &str, token: Option<&str>) {
     let check_result;
     loop {
         check_poll_response = api.get_checking_result(&check.links).unwrap();
-        eprintln!("check_poll_response = {:?}", check_poll_response);
+        info!("check_poll_response = {:?}", check_poll_response);
         match check_poll_response {
             ApiPollResponse::SuccessResponse(s) => {
                 check_result = s.data;
                 break;
             }
             ApiPollResponse::ProgressResponse(p) => {
-                eprintln!("progress = {:?}", p.progress.percent);
+                info!("progress = {:?}", p.progress.percent);
                 thread::sleep(Duration::from_secs(p.progress.retryAfter));
             }
         }
     }
 
-    eprintln!("check_result = {:?}", check_result);
+    info!("check_result = {:?}", check_result);
 }
 
 fn signin_command(server_address: &str, auth_token_option: Option<String>) {
     let api = connect(server_address, None);
 
-    println!("Yeah, there is a server: {:?}", api.server_version());
+    info!("Yeah, there is a server: {:?}", api.server_info());
 
     let signin_options = match auth_token_option {
         Some(token) => SigninOptions::Token(token),
@@ -92,31 +91,31 @@ fn signin_command(server_address: &str, auth_token_option: Option<String>) {
     };
 
     let signin_response = api.signin(signin_options).unwrap();
-    println!("signin_response = {:?}", signin_response);
+    info!("signin_response = {:?}", signin_response);
 
     match signin_response {
         SigninLinks(signin_links_response) => {
-            println!("Please signin at {:?}", signin_links_response.links.interactive);
+            info!("Please signin at {:?}", signin_links_response.links.interactive);
             let logged_in = api.wait_for_signin(&signin_links_response.links).unwrap();
-            println!("authToken = {:?}", logged_in.authToken);
-            println!("You are logged in as {:?}", logged_in.userId);
+            info!("authToken = {:?}", logged_in.authToken);
+            info!("You are logged in as {:?}", logged_in.userId);
         }
         LoggedIn(logged_in) => {
-            println!("You are already logged in as {:?}", logged_in.userId);
+            info!("You are already logged in as {:?}", logged_in.userId);
         }
     }
 }
 
 fn sso_command<S: Into<String>>(server_address: &str, user_id: S, password: S) {
     let api = connect(server_address, None);
-    println!("Yeah, there is a server: {:?}", api.server_version());
+    info!("Yeah, there is a server: {:?}", api.server_info());
     let signin_response = api.signin(SigninOptions::Sso(
         SsoOptions {
             user_id: Some(user_id.into()),
             password: Some(password.into()),
             ..SsoOptions::default()
         })).unwrap();
-    println!("signin_response = {:?}", signin_response);
+    info!("signin_response = {:?}", signin_response);
 }
 
 fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a Option<String>) -> Arg<'a, 'b> {
@@ -145,6 +144,8 @@ static SUB_COMMAND_CHECK: &str = "check";
 
 
 fn main() {
+    simple_logger::init_with_level(Level::Info).unwrap();
+
     let config = Config::read();
 
     let auth_token_arg = create_arg(AUTH_TOKEN_ARG, "ACROLINX_AUTH_TOKEN", &config.access_token)
@@ -183,19 +184,19 @@ fn main() {
     let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
-        println!("signin {:?} {:?}", server_address, auth_token_option);
+        info!("signin {:?} {:?}", server_address, auth_token_option);
         signin_command(server_address, auth_token_option.map(|s| s.to_string()));
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
-        println!("info {:?} {:?}", server_address, auth_token_option);
+        info!("info {:?} {:?}", server_address, auth_token_option);
         server_info(server_address, auth_token_option);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_SSO) {
         let user_id = command_matches.value_of(USER_ID_ARG).unwrap();
         let password = command_matches.value_of(PASSWORD_ARG).unwrap();
-        println!("sso {:?} {:?} {:?}", server_address, user_id, password);
+        info!("sso {:?} {:?} {:?}", server_address, user_id, password);
         sso_command(server_address, user_id, password);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
         let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
-        println!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
+        info!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
         check(server_address, document_file_name, auth_token_option);
     }
 }

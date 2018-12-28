@@ -25,6 +25,8 @@ use crate::api::common_types::ApiPollResponse;
 use hyper::HeaderMap;
 use std::str::FromStr;
 use crate::api::common_types::ErrorResponse;
+use log::{info};
+use crate::api::common_types::NoLinks;
 
 const HEADER_ACROLINX_CLIENT_LOCALE: &str = "X-Acrolinx-Client-Locale";
 const HEADER_ACROLINX_AUTH: &str = "X-Acrolinx-Auth";
@@ -48,15 +50,15 @@ pub struct ClientInformation {
     pub signature: String,
 }
 
+const API_BASE_PATH: &str = "/api/v1";
+
 impl AcroApi {
     pub fn new(props: AcroApiProps, authentication: Option<&str>) -> Self {
         AcroApi { props, authentication: authentication.map(|s| s.to_string()) }
     }
 
-    pub fn server_version(&self) -> Result<ServerVersionInfo, ApiError> {
-        let url = self.props.server_url.clone() + "/iq/services/v3/rest/core/serverVersion";
-        let server_info = self.get(&url)?.json()?;
-        Ok(server_info)
+    pub fn server_info(&self) -> Result<ServerInfo, ApiError> {
+        self.get_data("")
     }
 
     pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
@@ -102,7 +104,7 @@ impl AcroApi {
         let mut res = self.poll_for_signin(signin_links, None)?;
 
         while let PollInteractiveSigninResponse::PollMoreResult(poll_more) = res {
-            eprintln!("Polling ");
+            info!("Polling ");
             res = self.poll_for_signin(signin_links, Some(&poll_more))?;
         }
 
@@ -123,7 +125,7 @@ impl AcroApi {
     fn get<U: reqwest::IntoUrl>(&self, url: U) -> Result<reqwest::Response, ApiError> {
         let mut response = self.get_raw(url)?;
         if response.status().is_success() {
-            eprintln!("response = {:?}", response);
+            info!("response = {:?}", response);
             Ok(response)
         } else {
             let error_response: ErrorResponse = response.json()?;
@@ -131,10 +133,24 @@ impl AcroApi {
         }
     }
 
+    fn get_data<T: DeserializeOwned>(&self, path: &str) -> Result<T, ApiError> {
+        let url = self.props.server_url.clone() + API_BASE_PATH + path;
+        let mut response_raw = self.get_raw(&url)?;
+        if response_raw.status().is_success() {
+            info!("response_raw = {:?}", response_raw);
+            let response: SuccessResponse<T, NoLinks> = response_raw.json()?;
+            Ok(response.data)
+        } else {
+            let error_response: ErrorResponse = response_raw.json()?;
+            Err(error_response.error)
+        }
+    }
+
+
     fn get_from_path<T: DeserializeOwned>(&self, path: &str) -> Result<T, ApiError> {
         let mut res = self.get(&(self.props.server_url.clone() + path))?;
         let text = res.text().unwrap();
-        eprintln!("get_from_path = {:?}", text);
+        info!("get_from_path = {:?}", text);
         serde_json::from_str(text.as_ref()).map_err(ApiError::from)
         // res.json().map_err(ApiError::from)
     }
@@ -149,7 +165,7 @@ impl AcroApi {
             .body(serde_json::to_string(&body).unwrap())
             .send();
 
-        eprintln!("response = {:?}", response);
+        info!("response = {:?}", response);
 
         response
     }
