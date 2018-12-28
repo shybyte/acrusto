@@ -1,13 +1,11 @@
 mod config;
 mod api;
 
-
 use std::env;
 use std::time::Duration;
 use std::thread;
 use clap::{Arg, App, SubCommand};
 use crate::api::{AcroApi, AcroApiProps, ClientInformation};
-use crate::api::signin::{SigninOptions, SsoOptions};
 use crate::api::checking::{CheckRequest, DocumentInfo};
 use crate::api::signin::SigninRequestResponse::*;
 use crate::config::Config;
@@ -19,6 +17,7 @@ use crate::api::common_types::ApiPollResponse;
 use crate::api::checking::CheckOptions;
 use log::{info, Level};
 use simple_logger;
+use lazy_static::{lazy_static};
 
 
 fn connect<S: Into<String>>(server_url: S, token: Option<&str>) -> AcroApi {
@@ -80,17 +79,12 @@ fn check(server_address: &str, filename: &str, token: Option<&str>) {
     info!("check_result = {:?}", check_result);
 }
 
-fn signin_command(server_address: &str, auth_token_option: Option<String>) {
-    let api = connect(server_address, None);
+fn signin_command(server_address: &str, auth_token_option: Option<&str>) {
+    let api = connect(server_address, auth_token_option);
 
     info!("Yeah, there is a server: {:?}", api.server_info());
 
-    let signin_options = match auth_token_option {
-        Some(token) => SigninOptions::Token(token),
-        None => SigninOptions::InteractiveSignin
-    };
-
-    let signin_response = api.signin(signin_options).unwrap();
+    let signin_response = api.signin().unwrap();
     info!("signin_response = {:?}", signin_response);
 
     match signin_response {
@@ -106,18 +100,6 @@ fn signin_command(server_address: &str, auth_token_option: Option<String>) {
     }
 }
 
-fn sso_command<S: Into<String>>(server_address: &str, user_id: S, password: S) {
-    let api = connect(server_address, None);
-    info!("Yeah, there is a server: {:?}", api.server_info());
-    let signin_response = api.signin(SigninOptions::Sso(
-        SsoOptions {
-            user_id: Some(user_id.into()),
-            password: Some(password.into()),
-            ..SsoOptions::default()
-        })).unwrap();
-    info!("signin_response = {:?}", signin_response);
-}
-
 fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a Option<String>) -> Arg<'a, 'b> {
     let arg = Arg::with_name(name)
         .long(name)
@@ -130,16 +112,23 @@ fn create_arg<'a, 'b>(name: &'a str, env_var_name: &'a str, default_option: &'a 
     }
 }
 
-static SERVER_ADDRESS_ARG: &str = "serverAddress";
+fn arg_name_to_env_var(arg_name: &str) -> String {
+    ("ACROLINX_".to_string() + arg_name).to_uppercase().replace("-", "_")
+}
+
+static SERVER_ADDRESS_ARG: &str = "acrolinx-address";
+static ACCESS_TOKEN_ARG: &str = "access-token";
 static SILENT_FLAG: &str = "silent";
-static USER_ID_ARG: &str = "USER_ID";
-static PASSWORD_ARG: &str = "PASSWORD";
-static AUTH_TOKEN_ARG: &str = "authToken";
+
+lazy_static! {
+    static ref SERVER_ADDRESS_ENV_VAR: String = arg_name_to_env_var(SERVER_ADDRESS_ARG);
+    static ref ACCESS_TOKEN_ENV_VAR: String = arg_name_to_env_var(ACCESS_TOKEN_ARG);
+    static ref SILENT_ENV_VAR: String = arg_name_to_env_var(SILENT_FLAG);
+}
 
 static DOCUMENT_ARG: &str = "DOCUMENT";
 
 static SUB_COMMAND_SIGN_IN: &str = "signin";
-static SUB_COMMAND_SSO: &str = "sso";
 static SUB_COMMAND_INFO: &str = "info";
 static SUB_COMMAND_CHECK: &str = "check";
 
@@ -147,17 +136,17 @@ static SUB_COMMAND_CHECK: &str = "check";
 fn main() {
     let config = Config::read();
 
-    let auth_token_arg = create_arg(AUTH_TOKEN_ARG, "ACROLINX_AUTH_TOKEN", &config.access_token)
+    let auth_token_arg = create_arg(ACCESS_TOKEN_ARG, &ACCESS_TOKEN_ENV_VAR, &config.access_token)
         .short("t")
         .help("Use an authToken")
         .takes_value(true);
 
-    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, "ACROLINX_SERVER_ADDRESS", &config.acrolinx_address)
+    let server_address_arg = create_arg(SERVER_ADDRESS_ARG, &SERVER_ADDRESS_ENV_VAR, &config.acrolinx_address)
         .short("a")
         .required(true)
         .takes_value(true);
 
-    let silent_flag = create_arg(SILENT_FLAG, "ACROLINX_SILENT", &None)
+    let silent_flag = create_arg(SILENT_FLAG, &SILENT_ENV_VAR, &None)
         .short("s")
         .takes_value(false);
 
@@ -170,11 +159,7 @@ fn main() {
         .arg(silent_flag)
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN).about("Signin to Acrolinx"))
         .subcommand(SubCommand::with_name(SUB_COMMAND_INFO).about("Show server information"))
-        .subcommand(SubCommand::with_name(SUB_COMMAND_SSO)
-            .about("Signin to Acrolinx by SSO")
-            .arg(Arg::with_name(USER_ID_ARG).required(true).index(2))
-            .arg(Arg::with_name(PASSWORD_ARG).required(true).index(3))
-        ).subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
+        .subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
         .about("Check a document")
         .arg(Arg::with_name(DOCUMENT_ARG).required(true).index(1))
     );
@@ -185,7 +170,7 @@ fn main() {
     }
 
     let matches = command_line_parser.get_matches();
-    let auth_token_option = matches.value_of(AUTH_TOKEN_ARG);
+    let auth_token_option = matches.value_of(ACCESS_TOKEN_ARG);
     let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
 
     if !matches.is_present(SILENT_FLAG) {
@@ -194,15 +179,10 @@ fn main() {
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
         info!("signin {:?} {:?}", server_address, auth_token_option);
-        signin_command(server_address, auth_token_option.map(|s| s.to_string()));
+        signin_command(server_address, auth_token_option);
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
         info!("info {:?} {:?}", server_address, auth_token_option);
         server_info(server_address, auth_token_option);
-    } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_SSO) {
-        let user_id = command_matches.value_of(USER_ID_ARG).unwrap();
-        let password = command_matches.value_of(PASSWORD_ARG).unwrap();
-        info!("sso {:?} {:?} {:?}", server_address, user_id, password);
-        sso_command(server_address, user_id, password);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
         let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
         info!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);

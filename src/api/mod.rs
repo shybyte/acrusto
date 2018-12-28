@@ -1,6 +1,6 @@
 use reqwest;
 use reqwest::Error;
-use reqwest::header::{CONTENT_TYPE, USER_AGENT, HeaderName};
+use reqwest::header::{CONTENT_TYPE, USER_AGENT};
 use mime::APPLICATION_JSON;
 use serde;
 use std::time::Duration;
@@ -23,7 +23,6 @@ use crate::api::common_types::InternalApiResponse;
 use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::ApiPollResponse;
 use hyper::HeaderMap;
-use std::str::FromStr;
 use crate::api::common_types::ErrorResponse;
 use log::{info};
 use crate::api::common_types::NoLinks;
@@ -61,10 +60,10 @@ impl AcroApi {
         self.get_data("")
     }
 
-    pub fn signin(&self, options: SigninOptions) -> Result<SigninRequestResponse, Error> {
+    pub fn signin(&self) -> Result<SigninRequestResponse, Error> {
         let url = self.props.server_url.clone() + "/api/v1/auth/sign-ins";
         let body = SigninRequest {};
-        self.post(&url, &body, self.create_signin_headers(options))?.json()
+        self.post(&url, &body, self.create_common_headers())?.json()
     }
 
     pub fn get_checking_capabilities(&self) -> Result<CheckingCapabilities, ApiError> {
@@ -180,28 +179,6 @@ impl AcroApi {
 
         if let Some(ref token) = self.authentication {
             headers.insert(HEADER_ACROLINX_AUTH, token.parse().unwrap());
-        }
-
-        headers
-    }
-
-    fn create_signin_headers(&self, options: SigninOptions) -> HeaderMap {
-        let mut headers = HeaderMap::new();
-
-        match options {
-            SigninOptions::Sso(sso_options) => {
-                if let Some(user_id) = sso_options.user_id {
-                    let header_name = sso_options.username_key.as_ref().map_or("username", String::as_ref);
-                    headers.insert(HeaderName::from_str(header_name).unwrap(), user_id.parse().unwrap());
-                }
-                if let Some(password) = sso_options.password {
-                    let header_name = sso_options.password_key.as_ref().map_or("username", String::as_ref);
-                    headers.insert(HeaderName::from_str(header_name).unwrap(), password.parse().unwrap(),
-                    );
-                }
-            }
-            SigninOptions::Token(token) => { headers.insert(HEADER_ACROLINX_AUTH, token.parse().unwrap()); }
-            SigninOptions::InteractiveSignin => {}
         }
 
         headers

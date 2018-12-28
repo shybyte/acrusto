@@ -1,19 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug, Default)]
-pub struct SsoOptions {
-    pub username_key: Option<String>,
-    pub password_key: Option<String>,
-    pub user_id: Option<String>,
-    pub password: Option<String>,
-}
-
-pub enum SigninOptions {
-    Sso(SsoOptions),
-    Token(String),
-    InteractiveSignin,
-}
-
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]
 pub enum AuthorizationType {

@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::Read;
 use dirs::home_dir;
 use serde_derive::Deserialize;
-use envy;
 
 type GenError = Box<std::error::Error>;
 
@@ -17,18 +16,11 @@ pub struct Config {
 
 impl Config {
     pub fn read() -> Self {
-        let config_from_env = envy::prefixed("ACROLINX_").from_env::<Config>().unwrap_or_default();
-
-        let config_from_file = home_dir().and_then(|mut path| {
+        home_dir().and_then(|mut path| {
             path.push(".config");
             path.push("acrusto.json");
             Self::read_from_path(&path).ok()
-        }).unwrap_or_default();
-
-        Config {
-            acrolinx_address: config_from_env.acrolinx_address.or(config_from_file.acrolinx_address),
-            access_token: config_from_env.access_token.or(config_from_file.access_token)
-        }
+        }).unwrap_or_default()
     }
 
     pub fn read_from_path(config_file_path: &Path) -> Result<Self, GenError> {
