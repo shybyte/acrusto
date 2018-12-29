@@ -2,11 +2,11 @@ use log::info;
 
 use crate::api::checking::CheckingCapabilities;
 use crate::commands::common::connect_and_signin;
-use crate::commands::common::CommandConfig;
+use crate::commands::common::CommonCommandConfig;
 use crate::api::checking::GuidanceProfile;
 use std::fmt::Debug;
 
-pub fn show_capabilities(config: CommandConfig) {
+pub fn show_capabilities(config: CommonCommandConfig) {
     let api = connect_and_signin(&config).api;
     info!("{:?}", api.server_info());
     let capabilities = api.get_checking_capabilities().unwrap();

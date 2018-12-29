@@ -10,7 +10,7 @@ use simple_logger;
 use crate::api::checking::{CheckRequest, DocumentInfo};
 use crate::api::checking::CheckOptions;
 use crate::api::common_types::ApiPollResponse;
-use crate::commands::common::CommandConfig;
+use crate::commands::common::CommonCommandConfig;
 use crate::api::checking::GuidanceProfileId;
 use crate::api::AcroApi;
 use crate::commands::common::connect_and_signin;
@@ -20,7 +20,7 @@ pub struct CheckCommandOpts {
     pub guidance_profile: Option<GuidanceProfileId>,
 }
 
-pub fn check(config: CommandConfig, opts: &CheckCommandOpts) {
+pub fn check(config: CommonCommandConfig, opts: &CheckCommandOpts) {
     let api = connect_and_signin(&config).api;
 
     for file in &opts.files {

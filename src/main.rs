@@ -11,7 +11,7 @@ use crate::commands::check::check;
 use crate::commands::info::server_info;
 use crate::commands::signin::signin_command;
 use crate::config::Config;
-use crate::commands::common::CommandConfig;
+use crate::commands::common::CommonCommandConfig;
 use crate::commands::check::CheckCommandOpts;
 
 mod config;
@@ -111,12 +111,11 @@ fn main() {
     let matches = command_line_parser.get_matches();
     let access_token_option = matches.value_of(ACCESS_TOKEN_ARG);
 
-    let command_config = CommandConfig {
+    let command_config = CommonCommandConfig {
         acrolinx_address: matches.value_of(SERVER_ADDRESS_ARG).unwrap().to_string(),
         access_token: access_token_option.map(String::from),
         silent: matches.is_present(SILENT_FLAG),
         open_url: matches.is_present(OPEN_URL_FLAG),
-        guidance_profile: access_token_option.map(String::from)
     };
 
     if matches.is_present(LOG_FLAG) {

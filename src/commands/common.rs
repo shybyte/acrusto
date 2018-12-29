@@ -7,17 +7,15 @@ use log::info;
 use crate::api::signin::LoggedInData;
 use crate::utils::open_url;
 use crate::api::signin::AccessToken;
-use crate::api::checking::GuidanceProfileId;
 
-pub struct CommandConfig {
+pub struct CommonCommandConfig {
     pub acrolinx_address: String,
     pub access_token: Option<AccessToken>,
     pub silent: bool,
     pub open_url: bool,
-    pub guidance_profile: Option<GuidanceProfileId>
 }
 
-pub fn connect(config: &CommandConfig) -> AcroApi {
+pub fn connect(config: &CommonCommandConfig) -> AcroApi {
     AcroApi::new(AcroApiProps {
         server_url: config.acrolinx_address.clone(),
         locale: "en".to_string(),
@@ -34,7 +32,7 @@ pub struct ConnectAndSigninResult {
     pub signin_details: LoggedInData,
 }
 
-pub fn connect_and_signin(config: &CommandConfig) -> ConnectAndSigninResult {
+pub fn connect_and_signin(config: &CommonCommandConfig) -> ConnectAndSigninResult {
     let mut api = connect(&config);
 
     info!("Yeah, there is a server: {:?}", api.server_info());
