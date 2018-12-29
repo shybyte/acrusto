@@ -3,9 +3,9 @@ use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::NoLinks;
 use crate::api::common_types::ProgressResponse;
 
-type AccessToken = String;
-type UserId = String;
-type Username = String;
+pub type AccessToken = String;
+pub type UserId = String;
+pub type Username = String;
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]

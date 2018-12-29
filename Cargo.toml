@@ -17,6 +17,7 @@ log = "0.4"
 simple_logger = "1.0.1"
 lazy_static = "1.2.0"
 open = "1.2.2"
+glob = "0.2.11"
 
 [profile.release]
 opt-level = "z"

@@ -6,12 +6,15 @@ use crate::api::signin::SigninRequestResponse;
 use log::info;
 use crate::api::signin::LoggedInData;
 use crate::utils::open_url;
+use crate::api::signin::AccessToken;
+use crate::api::checking::GuidanceProfileId;
 
 pub struct CommandConfig {
     pub acrolinx_address: String,
-    pub access_token: Option<String>,
+    pub access_token: Option<AccessToken>,
     pub silent: bool,
     pub open_url: bool,
+    pub guidance_profile: Option<GuidanceProfileId>
 }
 
 pub fn connect(config: &CommandConfig) -> AcroApi {

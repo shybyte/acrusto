@@ -4,21 +4,31 @@ use std::io::prelude::*;
 use std::thread;
 use std::time::Duration;
 
-use log::{info};
+use log::info;
 use simple_logger;
 
 use crate::api::checking::{CheckRequest, DocumentInfo};
 use crate::api::checking::CheckOptions;
 use crate::api::common_types::ApiPollResponse;
-use crate::commands::common::connect;
 use crate::commands::common::CommandConfig;
+use crate::api::checking::GuidanceProfileId;
+use crate::api::AcroApi;
+use crate::commands::common::connect_and_signin;
 
-pub fn check(config: CommandConfig, filename: &str) {
-    let api = connect(&config);
-    info!("{:?}", api.server_info());
-    let capabilities = api.get_checking_capabilities().unwrap();
-    info!("{:?}", capabilities);
+pub struct CheckCommandOpts {
+    pub files: Vec<String>,
+    pub guidance_profile: Option<GuidanceProfileId>,
+}
 
+pub fn check(config: CommandConfig, opts: &CheckCommandOpts) {
+    let api = connect_and_signin(&config).api;
+
+    for file in &opts.files {
+        check_file(&api, &opts.guidance_profile, &file);
+    }
+}
+
+pub fn check_file(api: &AcroApi, guidance_profile: &Option<GuidanceProfileId>, filename: &str) {
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
@@ -26,7 +36,7 @@ pub fn check(config: CommandConfig, filename: &str) {
 
     let check_request = CheckRequest {
         content: file_content,
-        checkOptions: CheckOptions { guidanceProfileId: capabilities.guidanceProfiles.first().map(|a| a.id.clone()) },
+        checkOptions: CheckOptions { guidanceProfileId: guidance_profile.to_owned() },
         document: Some(DocumentInfo {
             reference: fs::canonicalize(filename).ok()
                 .map(|path| path.to_string_lossy().into_owned())
@@ -52,4 +62,5 @@ pub fn check(config: CommandConfig, filename: &str) {
     }
 
     info!("check_result = {:?}", check_result);
+    println!("Check done for: {} {:?}", filename, check_result.quality.score);
 }

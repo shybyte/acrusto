@@ -3,7 +3,7 @@ use std::env;
 use clap::{App, Arg, SubCommand};
 use clap::crate_version;
 use lazy_static::lazy_static;
-use log::{info, Level};
+use log::{Level};
 use simple_logger;
 
 use crate::commands::capabilities::show_capabilities;
@@ -12,6 +12,7 @@ use crate::commands::info::server_info;
 use crate::commands::signin::signin_command;
 use crate::config::Config;
 use crate::commands::common::CommandConfig;
+use crate::commands::check::CheckCommandOpts;
 
 mod config;
 mod api;
@@ -21,16 +22,22 @@ mod utils;
 static SERVER_ADDRESS_ARG: &str = "acrolinx-address";
 static ACCESS_TOKEN_ARG: &str = "access-token";
 static SILENT_FLAG: &str = "silent";
+static LOG_FLAG: &str = "log";
 static OPEN_URL_FLAG: &str = "open";
+
+static GUIDANCE_PROFILE_ARG: &str = "guidance-profile";
+static FILES_ARG: &str = "files";
 
 lazy_static! {
     static ref SERVER_ADDRESS_ENV_VAR: String = arg_name_to_env_var(SERVER_ADDRESS_ARG);
     static ref ACCESS_TOKEN_ENV_VAR: String = arg_name_to_env_var(ACCESS_TOKEN_ARG);
     static ref SILENT_ENV_VAR: String = arg_name_to_env_var(SILENT_FLAG);
+    static ref LOG_ENV_VAR: String = arg_name_to_env_var(LOG_FLAG);
     static ref OPEN_URL_ENV_VAR: String = arg_name_to_env_var(OPEN_URL_FLAG);
-}
 
-static DOCUMENT_ARG: &str = "DOCUMENT";
+    static ref GUIDANCE_PROFILE_ENV_VAR: String = arg_name_to_env_var(GUIDANCE_PROFILE_ARG);
+    static ref FILES_ARG_ENV_VAR: String = arg_name_to_env_var(FILES_ARG);
+}
 
 static SUB_COMMAND_SIGN_IN: &str = "signin";
 static SUB_COMMAND_INFO: &str = "info";
@@ -56,10 +63,24 @@ fn main() {
         .help("Restricts the console output to a minimum for scripting.")
         .takes_value(false);
 
+    let log_flag = create_arg(LOG_FLAG, &LOG_ENV_VAR, &None)
+        .help("Logs more than you want.")
+        .takes_value(false);
+
     let open_url_flag = create_arg(OPEN_URL_FLAG, &SILENT_ENV_VAR, &None)
         .short("o")
         .help("Opens interactive sites, like the Dashboard, Sign-in page, and Scorecard.")
         .takes_value(false);
+
+    let guidance_profile_arg = create_arg(GUIDANCE_PROFILE_ARG, &GUIDANCE_PROFILE_ENV_VAR, &None)
+        .short("i") // TODO: Why i?
+        .help("Sets the guidance profile. See capabilities for available options.");
+
+    let files_arg = create_arg(FILES_ARG, &FILES_ARG_ENV_VAR, &None)
+        .short("f")
+        .multiple(true)
+        .required(true)
+        .help(" Sets the relative or absolute path to the file(s) to be checked.");
 
     let mut command_line_parser = App::new("acrusto")
         .version(crate_version!())
@@ -68,6 +89,7 @@ fn main() {
         .arg(server_address_arg)
         .arg(auth_token_arg)
         .arg(silent_flag)
+        .arg(log_flag)
         .arg(open_url_flag)
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN)
             .about("Signs in to Acrolinx via the Sign-in page and gets an access token."))
@@ -77,7 +99,8 @@ fn main() {
             .about("Lists the available check settings."))
         .subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
             .about("Checks the given file(s) with Acrolinx.")
-            .arg(Arg::with_name(DOCUMENT_ARG).required(true).index(1))
+            .arg(guidance_profile_arg)
+            .arg(files_arg)
         );
 
     let args: Vec<_> = env::args().collect();
@@ -86,33 +109,31 @@ fn main() {
     }
 
     let matches = command_line_parser.get_matches();
-    let auth_token_option = matches.value_of(ACCESS_TOKEN_ARG);
-    let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
+    let access_token_option = matches.value_of(ACCESS_TOKEN_ARG);
 
     let command_config = CommandConfig {
-        acrolinx_address: server_address.to_string(),
-        access_token: auth_token_option.map(String::from),
+        acrolinx_address: matches.value_of(SERVER_ADDRESS_ARG).unwrap().to_string(),
+        access_token: access_token_option.map(String::from),
         silent: matches.is_present(SILENT_FLAG),
         open_url: matches.is_present(OPEN_URL_FLAG),
+        guidance_profile: access_token_option.map(String::from)
     };
 
-    if !command_config.silent {
+    if matches.is_present(LOG_FLAG) {
         simple_logger::init_with_level(Level::Info).ok();
     }
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
-        info!("signin {:?} {:?}", server_address, auth_token_option);
         signin_command(command_config);
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
-        info!("info {:?} {:?}", server_address, auth_token_option);
         server_info(command_config);
     } else if matches.subcommand_matches(SUB_COMMAND_CAPABILITIES).is_some() {
-        info!("show_capabilities {:?} {:?}", server_address, auth_token_option);
         show_capabilities(command_config);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
-        let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
-        info!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
-        check(command_config, document_file_name);
+        check(command_config, &CheckCommandOpts {
+            files: command_matches.values_of(FILES_ARG).unwrap().map(String::from).collect(),
+            guidance_profile: command_matches.value_of(GUIDANCE_PROFILE_ARG).map(String::from)
+        });
     }
 }
 
