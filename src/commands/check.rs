@@ -14,6 +14,10 @@ use crate::commands::common::CommonCommandConfig;
 use crate::api::checking::GuidanceProfileId;
 use crate::api::AcroApi;
 use crate::commands::common::connect_and_signin;
+use ansi_term::Colour::{Red, Yellow, Green};
+use ansi_term::ANSIGenericString;
+use crate::api::checking::CheckResultQuality;
+use crate::api::checking::QualityStatus;
 
 pub struct CheckCommandOpts {
     pub files: Vec<String>,
@@ -62,5 +66,15 @@ pub fn check_file(api: &AcroApi, guidance_profile: &Option<GuidanceProfileId>, f
     }
 
     info!("check_result = {:?}", check_result);
-    println!("Check done for: {} {:?}", filename, check_result.quality.score);
+    println!("Check done for: {} {}", filename, colored_score(&check_result.quality));
+}
+
+fn colored_score(quality: &CheckResultQuality) -> ANSIGenericString<str> {
+    let color = match quality.status {
+        QualityStatus::red => Red,
+        QualityStatus::yellow => Yellow,
+        QualityStatus::green => Green,
+    };
+
+    color.paint(format!("{}", quality.score))
 }

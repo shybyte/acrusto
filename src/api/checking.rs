@@ -132,9 +132,14 @@ pub struct CheckResultLinks {}
 #[derive(Deserialize, Debug)]
 pub struct CheckResultQuality {
     pub score: f64,
-    pub status: String,
+    pub status: QualityStatus,
 }
 
 
-
-
+#[allow(non_camel_case_types)]
+#[derive(Deserialize, Serialize, Debug)]
+pub enum QualityStatus {
+    red,
+    yellow,
+    green
+}
