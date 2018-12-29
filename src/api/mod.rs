@@ -86,7 +86,7 @@ impl AcroApi {
 
     pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, ApiError> {
         if let Some(pm) = poll_more {
-            thread::sleep(Duration::from_secs(pm.retryAfter));
+            thread::sleep(Duration::from_secs(pm.progress.retryAfter));
         }
         self.get(&signin_links.poll)?.json().map_err(ApiError::from)
     }

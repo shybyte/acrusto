@@ -40,8 +40,10 @@ pub struct ProgressResponseLinks {
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 pub struct Progress {
-    pub percent: f64,
-    pub message: String,
+    pub percent: Option<f64>,
+    pub message: Option<String>,
+
+    /// seconds
     pub retryAfter: u64
 }
 

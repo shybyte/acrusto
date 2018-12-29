@@ -1,6 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::NoLinks;
+use crate::api::common_types::ProgressResponse;
 
 type AccessToken = String;
 type UserId = String;
@@ -42,11 +43,8 @@ pub enum PollInteractiveSigninResponse {
     LoggedIn(LoggedInResponse),
 }
 
-#[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
-pub struct PollMoreResult {
-    pub retryAfter: u64
-}
+
+pub type PollMoreResult = ProgressResponse;
 
 
 #[allow(non_snake_case)]

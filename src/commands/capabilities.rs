@@ -7,7 +7,7 @@ use crate::api::checking::GuidanceProfile;
 use std::fmt::Debug;
 
 pub fn show_capabilities(config: CommandConfig) {
-    let api = connect_and_signin(&config);
+    let api = connect_and_signin(&config).api;
     info!("{:?}", api.server_info());
     let capabilities = api.get_checking_capabilities().unwrap();
     if config.silent {
