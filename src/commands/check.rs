@@ -21,6 +21,7 @@ use crate::api::checking::CheckResultQuality;
 use crate::api::checking::QualityStatus;
 use uuid::Uuid;
 use crate::utils::open_url;
+use glob::glob;
 
 pub struct CheckCommandOpts {
     pub files: Vec<String>,
@@ -38,15 +39,17 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
 
     println!("Generated batch id: {}", batch_id);
 
-    for file in &opts.files {
-        check_file(&api, &check_options, &file);
+    for file_pattern in &opts.files {
+        for path in glob(file_pattern).unwrap().filter_map(Result::ok) {
+            check_file(&api, &check_options, path.to_str().unwrap());
+        }
     }
 
     show_aggregated_report(&config, &api, &batch_id);
 }
 
 
-pub fn check_file(api: &AcroApi, check_options: &CheckOptions, filename: &str) {
+pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str) {
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
