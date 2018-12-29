@@ -5,11 +5,13 @@ use crate::api::ClientInformation;
 use crate::api::signin::SigninRequestResponse;
 use log::info;
 use crate::api::signin::LoggedInData;
+use crate::utils::open_url;
 
 pub struct CommandConfig {
     pub acrolinx_address: String,
     pub access_token: Option<String>,
     pub silent: bool,
+    pub open_url: bool,
 }
 
 pub fn connect(config: &CommandConfig) -> AcroApi {
@@ -43,6 +45,10 @@ pub fn connect_and_signin(config: &CommandConfig) -> ConnectAndSigninResult {
                 println!("Please signin at");
             }
             println!("{}", signin_links_response.links.interactive);
+
+            if config.open_url {
+                open_url(&signin_links_response.links.interactive).unwrap();
+            }
 
             let signin_details = api.wait_for_signin(&signin_links_response.links).unwrap();
 

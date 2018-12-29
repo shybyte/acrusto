@@ -16,15 +16,18 @@ use crate::commands::common::CommandConfig;
 mod config;
 mod api;
 mod commands;
+mod utils;
 
 static SERVER_ADDRESS_ARG: &str = "acrolinx-address";
 static ACCESS_TOKEN_ARG: &str = "access-token";
 static SILENT_FLAG: &str = "silent";
+static OPEN_URL_FLAG: &str = "open";
 
 lazy_static! {
     static ref SERVER_ADDRESS_ENV_VAR: String = arg_name_to_env_var(SERVER_ADDRESS_ARG);
     static ref ACCESS_TOKEN_ENV_VAR: String = arg_name_to_env_var(ACCESS_TOKEN_ARG);
     static ref SILENT_ENV_VAR: String = arg_name_to_env_var(SILENT_FLAG);
+    static ref OPEN_URL_ENV_VAR: String = arg_name_to_env_var(OPEN_URL_FLAG);
 }
 
 static DOCUMENT_ARG: &str = "DOCUMENT";
@@ -48,9 +51,14 @@ fn main() {
         .help("Sets the URL of the Acrolinx Platform.")
         .takes_value(true);
 
-    let silent_flag = create_arg(SILENT_FLAG, &SILENT_ENV_VAR, &None)
+    let silent_flag = create_arg(SILENT_FLAG, &OPEN_URL_ENV_VAR, &None)
         .short("s")
         .help("Restricts the console output to a minimum for scripting.")
+        .takes_value(false);
+
+    let open_url_flag = create_arg(OPEN_URL_FLAG, &SILENT_ENV_VAR, &None)
+        .short("o")
+        .help("Opens interactive sites, like the Dashboard, Sign-in page, and Scorecard.")
         .takes_value(false);
 
     let mut command_line_parser = App::new("acrusto")
@@ -60,6 +68,7 @@ fn main() {
         .arg(server_address_arg)
         .arg(auth_token_arg)
         .arg(silent_flag)
+        .arg(open_url_flag)
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN)
             .about("Signs in to Acrolinx via the Sign-in page and gets an access token."))
         .subcommand(SubCommand::with_name(SUB_COMMAND_INFO)
@@ -83,7 +92,8 @@ fn main() {
     let command_config = CommandConfig {
         acrolinx_address: server_address.to_string(),
         access_token: auth_token_option.map(String::from),
-        silent: matches.is_present(SILENT_FLAG)
+        silent: matches.is_present(SILENT_FLAG),
+        open_url: matches.is_present(OPEN_URL_FLAG),
     };
 
     if !command_config.silent {
