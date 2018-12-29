@@ -10,10 +10,10 @@ pub type ReferencePattern = String;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GuidanceProfile {
     pub id: GuidanceProfileId,
-    displayName: GoalIdString,
-    language: Language,
-    termSets: Vec<TermSet>,
-    goals: Vec<Goal>,
+    pub displayName: GoalIdString,
+    pub language: Language,
+    pub termSets: Vec<TermSet>,
+    pub goals: Vec<Goal>,
 }
 
 #[allow(non_snake_case)]
@@ -50,8 +50,8 @@ pub struct CheckingCapabilities {
 #[allow(non_snake_case)]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ContentFormat {
-    id: ContentFormatId,
-    displayName: String,
+    pub id: ContentFormatId,
+    pub displayName: String,
 }
 
 #[allow(non_camel_case_types)]

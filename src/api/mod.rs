@@ -23,7 +23,7 @@ use crate::api::common_types::SuccessResponse;
 use crate::api::common_types::ApiPollResponse;
 use hyper::HeaderMap;
 use crate::api::common_types::ErrorResponse;
-use log::{info};
+use log::info;
 use crate::api::common_types::NoLinks;
 
 const HEADER_ACROLINX_CLIENT_LOCALE: &str = "X-Acrolinx-Client-Locale";
@@ -51,8 +51,12 @@ pub struct ClientInformation {
 const API_BASE_PATH: &str = "/api/v1";
 
 impl AcroApi {
-    pub fn new(props: AcroApiProps, authentication: Option<&str>) -> Self {
-        AcroApi { props, authentication: authentication.map(|s| s.to_string()) }
+    pub fn new<S: Into<String>>(props: AcroApiProps, authentication: Option<S>) -> Self {
+        AcroApi { props, authentication: authentication.map(Into::into) }
+    }
+
+    pub fn set_access_token(&mut self, access_token: &str) {
+        self.authentication = Some(access_token.to_string());
     }
 
     pub fn server_info(&self) -> Result<ServerInfo, ApiError> {

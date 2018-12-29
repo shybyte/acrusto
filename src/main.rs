@@ -11,6 +11,7 @@ use crate::commands::check::check;
 use crate::commands::info::server_info;
 use crate::commands::signin::signin_command;
 use crate::config::Config;
+use crate::commands::common::CommandConfig;
 
 mod config;
 mod api;
@@ -79,23 +80,29 @@ fn main() {
     let auth_token_option = matches.value_of(ACCESS_TOKEN_ARG);
     let server_address = matches.value_of(SERVER_ADDRESS_ARG).unwrap();
 
-    if !matches.is_present(SILENT_FLAG) {
+    let command_config = CommandConfig {
+        acrolinx_address: server_address.to_string(),
+        access_token: auth_token_option.map(String::from),
+        silent: matches.is_present(SILENT_FLAG)
+    };
+
+    if !command_config.silent {
         simple_logger::init_with_level(Level::Info).ok();
     }
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
         info!("signin {:?} {:?}", server_address, auth_token_option);
-        signin_command(server_address, auth_token_option);
+        signin_command(command_config);
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
         info!("info {:?} {:?}", server_address, auth_token_option);
-        server_info(server_address, auth_token_option);
+        server_info(command_config);
     } else if matches.subcommand_matches(SUB_COMMAND_CAPABILITIES).is_some() {
         info!("show_capabilities {:?} {:?}", server_address, auth_token_option);
-        show_capabilities(server_address, auth_token_option);
+        show_capabilities(command_config);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
         let document_file_name = command_matches.value_of(DOCUMENT_ARG).unwrap();
         info!("check {:?} {:?} {:?}", server_address, document_file_name, auth_token_option);
-        check(server_address, document_file_name, auth_token_option);
+        check(command_config, document_file_name);
     }
 }
 

@@ -11,9 +11,10 @@ use crate::api::checking::{CheckRequest, DocumentInfo};
 use crate::api::checking::CheckOptions;
 use crate::api::common_types::ApiPollResponse;
 use crate::commands::common::connect;
+use crate::commands::common::CommandConfig;
 
-pub fn check(server_address: &str, filename: &str, token: Option<&str>) {
-    let api = connect(server_address, token);
+pub fn check(config: CommandConfig, filename: &str) {
+    let api = connect(&config);
     info!("{:?}", api.server_info());
     let capabilities = api.get_checking_capabilities().unwrap();
     info!("{:?}", capabilities);

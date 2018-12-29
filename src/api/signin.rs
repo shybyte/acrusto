@@ -1,4 +1,10 @@
 use serde_derive::{Deserialize, Serialize};
+use crate::api::common_types::SuccessResponse;
+use crate::api::common_types::NoLinks;
+
+type AccessToken = String;
+type UserId = String;
+type Username = String;
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]
@@ -45,16 +51,26 @@ pub struct PollMoreResult {
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-pub struct SigninLinksResponse {
+pub struct SigninLinksData {
     pub interactiveLinkTimeout: u64,
-    pub links: SigninLinks,
 }
+
+type SigninLinksResponse = SuccessResponse<SigninLinksData, SigninLinks>;
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
-pub struct LoggedInResponse {
-    pub authToken: String,
-    pub userId: String,
+pub struct LoggedInData {
+    pub accessToken: AccessToken,
+    pub user: User,
     pub authorizedUsing: AuthorizationType,
-    pub privileges: Vec<String>,
 }
+
+pub type LoggedInResponse = SuccessResponse<LoggedInData, NoLinks>;
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct User {
+    pub id: UserId,
+    pub username: Username
+}
+
