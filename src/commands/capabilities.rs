@@ -19,7 +19,7 @@ pub fn show_capabilities(config: CommandConfig) {
 
 fn print_capabilities_for_humans(capabilities: CheckingCapabilities) {
     print_section("GUIDANCE PROFILES", &capabilities.guidanceProfiles, format_guidance_profile);
-    print_section("CONTENT FORMATS", &capabilities.contentFormats, |f| f.displayName.clone());
+    print_section("CONTENT FORMATS", &capabilities.contentFormats, |f| f.id.clone());
     print_section_enums("CONTENT ENCODINGS", &capabilities.contentEncodings);
     print_section_enums("CHECK TYPES", &capabilities.checkTypes);
     print_section_enums("REPORT TYPES", &capabilities.reportTypes);
