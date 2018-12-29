@@ -84,6 +84,12 @@ impl AcroApi {
         self.get(&check_response_links.result)?.json().map_err(ApiError::from)
     }
 
+    pub fn get_link_to_aggregated_report(&self, batch_id: &str)
+                                         -> Result<AggregatedReportLinkResponse, ApiError> {
+        let url = self.props.server_url.clone() + "/api/v1/checking/aggregation/" + batch_id;
+        self.get(&url)?.json().map_err(ApiError::from)
+    }
+
     pub fn poll_for_signin(&self, signin_links: &SigninLinks, poll_more: Option<&PollMoreResult>) -> Result<PollInteractiveSigninResponse, ApiError> {
         if let Some(pm) = poll_more {
             thread::sleep(Duration::from_secs(pm.progress.retryAfter));

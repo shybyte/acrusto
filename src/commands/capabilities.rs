@@ -6,18 +6,18 @@ use crate::commands::common::CommonCommandConfig;
 use crate::api::checking::GuidanceProfile;
 use std::fmt::Debug;
 
-pub fn show_capabilities(config: CommonCommandConfig) {
+pub fn show_capabilities(config: &CommonCommandConfig) {
     let api = connect_and_signin(&config).api;
     info!("{:?}", api.server_info());
     let capabilities = api.get_checking_capabilities().unwrap();
     if config.silent {
         println!("{}", serde_json::to_string_pretty(&capabilities).unwrap());
     } else {
-        print_capabilities_for_humans(capabilities);
+        print_capabilities_for_humans(&capabilities);
     }
 }
 
-fn print_capabilities_for_humans(capabilities: CheckingCapabilities) {
+fn print_capabilities_for_humans(capabilities: &CheckingCapabilities) {
     print_section("GUIDANCE PROFILES", &capabilities.guidanceProfiles, format_guidance_profile);
     print_section("CONTENT FORMATS", &capabilities.contentFormats, |f| f.id.clone());
     print_section_enums("CONTENT ENCODINGS", &capabilities.contentEncodings);

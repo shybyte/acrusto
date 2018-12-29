@@ -123,13 +123,13 @@ fn main() {
     }
 
     if matches.subcommand_matches(SUB_COMMAND_SIGN_IN).is_some() {
-        signin_command(command_config);
+        signin_command(&command_config);
     } else if matches.subcommand_matches(SUB_COMMAND_INFO).is_some() {
-        server_info(command_config);
+        server_info(&command_config);
     } else if matches.subcommand_matches(SUB_COMMAND_CAPABILITIES).is_some() {
-        show_capabilities(command_config);
+        show_capabilities(&command_config);
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
-        check(command_config, &CheckCommandOpts {
+        check(&command_config, &CheckCommandOpts {
             files: command_matches.values_of(FILES_ARG).unwrap().map(String::from).collect(),
             guidance_profile: command_matches.value_of(GUIDANCE_PROFILE_ARG).map(String::from)
         });

@@ -89,9 +89,10 @@ pub struct CheckRequest {
 
 
 #[allow(non_snake_case)]
-#[derive(Serialize, Debug, Default)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct CheckOptions {
-    pub guidanceProfileId: Option<String>
+    pub guidanceProfileId: Option<String>,
+    pub batchId: Option<String>,
 }
 
 
@@ -141,5 +142,29 @@ pub struct CheckResultQuality {
 pub enum QualityStatus {
     red,
     yellow,
-    green
+    green,
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct AggregatedReportLinkResponse {
+    pub reports: Vec<AggregatedReportLink>
+}
+
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct AggregatedReportLink {
+    pub reportType: AggregatedReportType,
+    pub link: String,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
+pub enum AggregatedReportType {
+    withApiKey,
+    withoutApiKey,
+    shortWithApiKey,
+    shortWithoutApiKey,
+    #[serde(other)]
+    unexpected,
 }
