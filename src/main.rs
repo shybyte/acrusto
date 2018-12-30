@@ -27,6 +27,7 @@ static OPEN_URL_FLAG: &str = "open";
 
 static GUIDANCE_PROFILE_ARG: &str = "guidance-profile";
 static FILES_ARG: &str = "files";
+static MAX_CONCURRENT_ARG: &str = "max-concurrent";
 
 lazy_static! {
     static ref SERVER_ADDRESS_ENV_VAR: String = arg_name_to_env_var(SERVER_ADDRESS_ARG);
@@ -37,6 +38,7 @@ lazy_static! {
 
     static ref GUIDANCE_PROFILE_ENV_VAR: String = arg_name_to_env_var(GUIDANCE_PROFILE_ARG);
     static ref FILES_ARG_ENV_VAR: String = arg_name_to_env_var(FILES_ARG);
+    static ref MAX_CONCURRENT_ENV_VAR: String = arg_name_to_env_var(MAX_CONCURRENT_ARG);
 }
 
 static SUB_COMMAND_SIGN_IN: &str = "signin";
@@ -74,7 +76,12 @@ fn main() {
 
     let guidance_profile_arg = create_arg(GUIDANCE_PROFILE_ARG, &GUIDANCE_PROFILE_ENV_VAR, &None)
         .short("i") // TODO: Why i?
-        .help("Sets the guidance profile. See capabilities for available options.");
+        .help("Sets the guidance profile. See capabilities for available options.")
+        .takes_value(true);
+
+    let max_concurrent_arg = create_arg(MAX_CONCURRENT_ARG, &MAX_CONCURRENT_ENV_VAR, &None)
+        .default_value("1")
+        .help("Maximum number of concurrent checks.").takes_value(true);;
 
     let files_arg = create_arg(FILES_ARG, &FILES_ARG_ENV_VAR, &None)
         .short("f")
@@ -100,6 +107,7 @@ fn main() {
         .subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
             .about("Checks the given file(s) with Acrolinx.")
             .arg(guidance_profile_arg)
+            .arg(max_concurrent_arg)
             .arg(files_arg)
         );
 
@@ -131,7 +139,8 @@ fn main() {
     } else if let Some(command_matches) = matches.subcommand_matches(SUB_COMMAND_CHECK) {
         check(&command_config, &CheckCommandOpts {
             files: command_matches.values_of(FILES_ARG).unwrap().map(String::from).collect(),
-            guidance_profile: command_matches.value_of(GUIDANCE_PROFILE_ARG).map(String::from)
+            guidance_profile: command_matches.value_of(GUIDANCE_PROFILE_ARG).map(String::from),
+            max_concurrent: command_matches.value_of(MAX_CONCURRENT_ARG).unwrap().parse().unwrap()
         });
     }
 }

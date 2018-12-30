@@ -23,26 +23,31 @@ use uuid::Uuid;
 use crate::utils::open_url;
 use glob::glob;
 use regex::Regex;
+use threadpool::ThreadPool;
+use std::sync::Arc;
 
 pub struct CheckCommandOpts {
     pub files: Vec<String>,
     pub guidance_profile: Option<GuidanceProfileId>,
+    pub max_concurrent: usize,
 }
 
 pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
-    let api = connect_and_signin(&config).api;
+    let api = Arc::new(connect_and_signin(&config).api);
 
     let reference_pattern = api.get_checking_capabilities().unwrap().referencePattern;
     let reference_regex = Regex::new(&reference_pattern).unwrap();
 
     let batch_id = format!("gen.acrusto.{}", Uuid::new_v4());
 
-    let check_options = CheckOptions {
+    let check_options = Arc::new(CheckOptions {
         guidanceProfileId: opts.guidance_profile.to_owned(),
         batchId: Some(batch_id.clone()),
-    };
+    });
 
     println!("Generated batch id: {}", batch_id);
+
+    let pool = ThreadPool::new(opts.max_concurrent);
 
     for file_pattern in &opts.files {
         let filtered_files = glob(file_pattern).unwrap()
@@ -51,9 +56,15 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
             .filter(|file| reference_regex.is_match(file));
 
         for path in filtered_files {
-            check_file(&api, &check_options, &path);
+            let api = api.clone();
+            let check_options = check_options.clone();
+            pool.execute(move || {
+                check_file(&api, &check_options, &path);
+            });
         }
     }
+
+    pool.join();
 
     show_aggregated_report(&config, &api, &batch_id);
 }
@@ -64,6 +75,8 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str)
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
     info!("file_content = {:?}", file_content);
+
+    println!("Start check {}", filename);
 
     let check_request = CheckRequest {
         content: file_content,

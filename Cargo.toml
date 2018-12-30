@@ -21,6 +21,7 @@ glob = "0.2.11"
 ansi_term = "0.11.0"
 uuid = "0.7.1"
 regex = "1"
+threadpool = "1.0"
 
 [profile.release]
 opt-level = "z"
