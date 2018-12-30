@@ -22,6 +22,7 @@ use crate::api::checking::QualityStatus;
 use uuid::Uuid;
 use crate::utils::open_url;
 use glob::glob;
+use regex::Regex;
 
 pub struct CheckCommandOpts {
     pub files: Vec<String>,
@@ -30,6 +31,10 @@ pub struct CheckCommandOpts {
 
 pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     let api = connect_and_signin(&config).api;
+
+    let reference_pattern = api.get_checking_capabilities().unwrap().referencePattern;
+    let reference_regex = Regex::new(&reference_pattern).unwrap();
+
     let batch_id = format!("gen.acrusto.{}", Uuid::new_v4());
 
     let check_options = CheckOptions {
@@ -40,8 +45,13 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     println!("Generated batch id: {}", batch_id);
 
     for file_pattern in &opts.files {
-        for path in glob(file_pattern).unwrap().filter_map(Result::ok) {
-            check_file(&api, &check_options, path.to_str().unwrap());
+        let filtered_files = glob(file_pattern).unwrap()
+            .filter_map(Result::ok)
+            .map(|path| { path.to_string_lossy().to_string() })
+            .filter(|file| reference_regex.is_match(file));
+
+        for path in filtered_files {
+            check_file(&api, &check_options, &path);
         }
     }
 
