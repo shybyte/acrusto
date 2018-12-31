@@ -9,26 +9,20 @@ use simple_logger;
 
 use crate::api::checking::{CheckRequest, DocumentInfo};
 use crate::api::checking::CheckOptions;
-use crate::api::checking::AggregatedReportType;
+use crate::api::checking::AggregatedReportType::{shortWithApiKey, shortWithoutApiKey};
 use crate::api::common_types::ApiPollResponse;
 use crate::commands::common::CommonCommandConfig;
 use crate::api::checking::GuidanceProfileId;
 use crate::api::AcroApi;
 use crate::commands::common::connect_and_signin;
-use ansi_term::Colour::{Red, Yellow, Green};
-use ansi_term::ANSIGenericString;
-use crate::api::checking::CheckResultQuality;
-use crate::api::checking::QualityStatus;
 use uuid::Uuid;
 use crate::utils::open_url;
 use glob::glob;
 use regex::Regex;
 use threadpool::ThreadPool;
 use std::sync::Arc;
-use crate::commands::check::progress::MultiProgressReporter;
-
-use indicatif::ProgressBar;
-
+use crate::commands::check::progress::ProgressReporter;
+use crate::commands::check::progress::create_multi_progress_reporter;
 
 mod progress;
 
@@ -55,7 +49,7 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     println!("Generated batch id: {}", batch_id);
 
     let pool = ThreadPool::new(opts.max_concurrent);
-    let multi_progress = Arc::new(MultiProgressReporter::new());
+    let multi_progress = create_multi_progress_reporter();
 
     for file_pattern in &opts.files {
         let filtered_files = glob(file_pattern).unwrap()
@@ -69,10 +63,7 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
             let multi_progress = multi_progress.clone();
 
             pool.execute(move || {
-                let pb = multi_progress.add(&path);
-
-                let quality = check_file(&api, &check_options, &path, &pb);
-                pb.finish_with_message(&format!("{}", colored_score(&quality)));
+                check_file(&api, &check_options, &path, multi_progress.add(&path).as_ref());
             });
         }
     }
@@ -80,15 +71,14 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     multi_progress.join();
     pool.join();
 
-    show_aggregated_report(&config,opts, &api, &batch_id);
+    show_aggregated_report(&config, opts, &api, &batch_id);
 }
 
-pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str, progress_bar: &ProgressBar) -> CheckResultQuality {
+pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
+                    progress_reporter: &ProgressReporter) {
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
-
-//    println!("Start check {}", filename);text
 
     let check_request = CheckRequest {
         content: file_content,
@@ -113,25 +103,14 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
             ApiPollResponse::ProgressResponse(p) => {
                 info!("progress = {:?}", p.progress.percent);
                 if let Some(percent) = p.progress.percent {
-                    progress_bar.set_position(percent.round() as u64)
+                    progress_reporter.set_progress(percent);
                 }
                 thread::sleep(Duration::from_secs(p.progress.retryAfter));
             }
         }
     }
 
-//    println!("Check done for: {} {}", filename, colored_score(&check_result.quality));
-    check_result.quality
-}
-
-fn colored_score(quality: &CheckResultQuality) -> ANSIGenericString<str> {
-    let color = match quality.status {
-        QualityStatus::red => Red,
-        QualityStatus::yellow => Yellow,
-        QualityStatus::green => Green,
-    };
-
-    color.paint(format!("{}", quality.score))
+    progress_reporter.finish(&check_result.quality);
 }
 
 fn show_aggregated_report(config: &CommonCommandConfig, opts: &CheckCommandOpts, api: &AcroApi,
@@ -139,10 +118,7 @@ fn show_aggregated_report(config: &CommonCommandConfig, opts: &CheckCommandOpts,
     let aggregated_report_links = api.get_link_to_aggregated_report(&batch_id).unwrap();
     info!("report_links = {:?}", aggregated_report_links);
 
-    let report_type = match opts.auth_links {
-        true => AggregatedReportType::shortWithApiKey,
-        false => AggregatedReportType::shortWithoutApiKey
-    };
+    let report_type = if opts.auth_links { shortWithApiKey } else { shortWithoutApiKey };
 
     let aggregated_report_link = aggregated_report_links.reports.iter()
         .find(|report| report.reportType == report_type).unwrap();
