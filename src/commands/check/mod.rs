@@ -25,6 +25,12 @@ use glob::glob;
 use regex::Regex;
 use threadpool::ThreadPool;
 use std::sync::Arc;
+use crate::commands::check::progress::MultiProgressReporter;
+
+use indicatif::{ProgressBar};
+
+
+mod progress;
 
 pub struct CheckCommandOpts {
     pub files: Vec<String>,
@@ -48,6 +54,7 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     println!("Generated batch id: {}", batch_id);
 
     let pool = ThreadPool::new(opts.max_concurrent);
+    let multi_progress = Arc::new(MultiProgressReporter::new());
 
     for file_pattern in &opts.files {
         let filtered_files = glob(file_pattern).unwrap()
@@ -58,25 +65,30 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
         for path in filtered_files {
             let api = api.clone();
             let check_options = check_options.clone();
+            let multi_progress = multi_progress.clone();
+
             pool.execute(move || {
-                check_file(&api, &check_options, &path);
+                let pb = multi_progress.add(&path);
+
+                let quality = check_file(&api, &check_options, &path, &pb);
+                pb.finish_with_message(&format!("{}", colored_score(&quality)));
             });
         }
     }
 
+    multi_progress.join();
     pool.join();
 
     show_aggregated_report(&config, &api, &batch_id);
 }
 
-
-pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str) {
+pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str, progress_bar: &ProgressBar) -> CheckResultQuality {
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
     info!("file_content = {:?}", file_content);
 
-    println!("Start check {}", filename);
+//    println!("Start check {}", filename);text
 
     let check_request = CheckRequest {
         content: file_content,
@@ -100,13 +112,17 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str)
             }
             ApiPollResponse::ProgressResponse(p) => {
                 info!("progress = {:?}", p.progress.percent);
+                if let Some(percent) = p.progress.percent {
+                    progress_bar.set_position(percent.round() as u64)
+                }
                 thread::sleep(Duration::from_secs(p.progress.retryAfter));
             }
         }
     }
 
     info!("check_result = {:?}", check_result);
-    println!("Check done for: {} {}", filename, colored_score(&check_result.quality));
+//    println!("Check done for: {} {}", filename, colored_score(&check_result.quality));
+    check_result.quality
 }
 
 fn colored_score(quality: &CheckResultQuality) -> ANSIGenericString<str> {
