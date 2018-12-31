@@ -27,7 +27,7 @@ use threadpool::ThreadPool;
 use std::sync::Arc;
 use crate::commands::check::progress::MultiProgressReporter;
 
-use indicatif::{ProgressBar};
+use indicatif::ProgressBar;
 
 
 mod progress;
@@ -36,6 +36,7 @@ pub struct CheckCommandOpts {
     pub files: Vec<String>,
     pub guidance_profile: Option<GuidanceProfileId>,
     pub max_concurrent: usize,
+    pub auth_links: bool,
 }
 
 pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
@@ -79,14 +80,13 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     multi_progress.join();
     pool.join();
 
-    show_aggregated_report(&config, &api, &batch_id);
+    show_aggregated_report(&config,opts, &api, &batch_id);
 }
 
 pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str, progress_bar: &ProgressBar) -> CheckResultQuality {
     let mut f = File::open(filename).expect("File not found");
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
-    info!("file_content = {:?}", file_content);
 
 //    println!("Start check {}", filename);text
 
@@ -120,7 +120,6 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
         }
     }
 
-    info!("check_result = {:?}", check_result);
 //    println!("Check done for: {} {}", filename, colored_score(&check_result.quality));
     check_result.quality
 }
@@ -135,12 +134,18 @@ fn colored_score(quality: &CheckResultQuality) -> ANSIGenericString<str> {
     color.paint(format!("{}", quality.score))
 }
 
-fn show_aggregated_report(config: &CommonCommandConfig, api: &AcroApi, batch_id: &str) {
+fn show_aggregated_report(config: &CommonCommandConfig, opts: &CheckCommandOpts, api: &AcroApi,
+                          batch_id: &str) {
     let aggregated_report_links = api.get_link_to_aggregated_report(&batch_id).unwrap();
     info!("report_links = {:?}", aggregated_report_links);
 
+    let report_type = match opts.auth_links {
+        true => AggregatedReportType::shortWithApiKey,
+        false => AggregatedReportType::shortWithoutApiKey
+    };
+
     let aggregated_report_link = aggregated_report_links.reports.iter()
-        .find(|report| report.reportType == AggregatedReportType::withApiKey).unwrap();
+        .find(|report| report.reportType == report_type).unwrap();
 
     if !config.silent {
         println!("Find the Content Analysis Dashboard for your files here:")
