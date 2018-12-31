@@ -5,7 +5,8 @@ cargo build --release
 ls -l target/release/acrusto
 strip target/release/acrusto
 ls -l target/release/acrusto
-~/opt/upx-3.95/upx target/release/acrusto
+#~/opt/upx-3.95/upx --best --ultra-brute target/release/acrusto
+~/opt/upx-3.95/upx --best --brute target/release/acrusto
 ls -l target/release/acrusto
 
 # Disable jemalloc for smaller size
