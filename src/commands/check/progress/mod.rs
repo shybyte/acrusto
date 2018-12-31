@@ -3,13 +3,14 @@ use crate::commands::check::progress::progress_bar::MultiProgressBarReporter;
 use std::sync::Arc;
 use console::Term;
 use crate::commands::check::progress::minimal_progress::MinimalMultiProgressReporter;
+use crate::api::errors::ApiError;
 
 mod progress_bar;
 mod minimal_progress;
 
 pub trait ProgressReporter {
     fn set_progress(&self, percent: f64);
-    fn finish(&self, quality: &CheckResultQuality);
+    fn finish(&self, result: &Result<CheckResultQuality, ApiError>);
 }
 
 pub trait MultiProgressReporter: Sync + Send {

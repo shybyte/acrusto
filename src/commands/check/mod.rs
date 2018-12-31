@@ -23,6 +23,8 @@ use threadpool::ThreadPool;
 use std::sync::Arc;
 use crate::commands::check::progress::ProgressReporter;
 use crate::commands::check::progress::create_multi_progress_reporter;
+use crate::api::checking::CheckResultQuality;
+use crate::api::errors::ApiError;
 
 mod progress;
 
@@ -63,7 +65,9 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
             let multi_progress = multi_progress.clone();
 
             pool.execute(move || {
-                check_file(&api, &check_options, &path, multi_progress.add(&path).as_ref());
+                let progress_reporter = multi_progress.add(&path);
+                let result = check_file(&api, &check_options, &path, progress_reporter.as_ref());
+                progress_reporter.finish(&result);
             });
         }
     }
@@ -75,8 +79,8 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
 }
 
 pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
-                    progress_reporter: &ProgressReporter) {
-    let mut f = File::open(filename).expect("File not found");
+                    progress_reporter: &ProgressReporter) -> Result<CheckResultQuality, ApiError> {
+    let mut f = File::open(filename)?;
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
 
@@ -88,12 +92,12 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
                 .map(|path| path.to_string_lossy().into_owned())
         }),
     };
-    let check = api.check(&check_request).unwrap();
+    let check = api.check(&check_request)?;
 
     let mut check_poll_response;
     let check_result;
     loop {
-        check_poll_response = api.get_checking_result(&check.links).unwrap();
+        check_poll_response = api.get_checking_result(&check.links)?;
         info!("check_poll_response = {:?}", check_poll_response);
         match check_poll_response {
             ApiPollResponse::SuccessResponse(s) => {
@@ -110,7 +114,7 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
         }
     }
 
-    progress_reporter.finish(&check_result.quality);
+    Ok(check_result.quality)
 }
 
 fn show_aggregated_report(config: &CommonCommandConfig, opts: &CheckCommandOpts, api: &AcroApi,

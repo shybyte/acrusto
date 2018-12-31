@@ -9,6 +9,7 @@ use ansi_term::Colour::{Red, Yellow, Green};
 use ansi_term::ANSIGenericString;
 use crate::commands::check::progress::ProgressReporter;
 use crate::commands::check::progress::MultiProgressReporter;
+use crate::api::errors::ApiError;
 
 pub struct ProgressBarReporter {
     progress_bar: indicatif::ProgressBar,
@@ -38,8 +39,12 @@ impl ProgressReporter for ProgressBarReporter {
         self.progress_bar.set_position(percent.round() as u64);
     }
 
-    fn finish(&self, quality: &CheckResultQuality) {
-        self.progress_bar.finish_with_message(&format!("{}", colored_score(&quality)));
+    fn finish(&self, result: &Result<CheckResultQuality, ApiError>) {
+        let message = match result {
+            Ok(quality) =>colored_score(quality),
+            Err(_) => Red.blink().paint("ERR")
+        };
+        self.progress_bar.finish_with_message(&format!("{}", message));
     }
 }
 

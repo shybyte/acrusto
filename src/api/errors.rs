@@ -35,3 +35,14 @@ impl From<serde_json::error::Error> for ApiError {
         }
     }
 }
+
+impl From<std::io::Error> for ApiError {
+    fn from(io_error: std::io::Error) -> ApiError {
+        ApiError {
+            _type: "IoError".to_string(),
+            title: io_error.description().to_string(),
+            detail: io_error.to_string(),
+            status: None
+        }
+    }
+}
