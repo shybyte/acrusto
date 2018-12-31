@@ -3,7 +3,7 @@ use std::env;
 use clap::{App, Arg, SubCommand};
 use clap::crate_version;
 use lazy_static::lazy_static;
-use log::{Level};
+use log::Level;
 use simple_logger;
 
 use crate::commands::capabilities::show_capabilities;
@@ -28,6 +28,7 @@ static OPEN_URL_FLAG: &str = "open";
 static GUIDANCE_PROFILE_ARG: &str = "guidance-profile";
 static FILES_ARG: &str = "files";
 static MAX_CONCURRENT_ARG: &str = "max-concurrent";
+static AUTH_LINKS_FLAG: &str = "auth-links";
 
 lazy_static! {
     static ref SERVER_ADDRESS_ENV_VAR: String = arg_name_to_env_var(SERVER_ADDRESS_ARG);
@@ -39,6 +40,7 @@ lazy_static! {
     static ref GUIDANCE_PROFILE_ENV_VAR: String = arg_name_to_env_var(GUIDANCE_PROFILE_ARG);
     static ref FILES_ARG_ENV_VAR: String = arg_name_to_env_var(FILES_ARG);
     static ref MAX_CONCURRENT_ENV_VAR: String = arg_name_to_env_var(MAX_CONCURRENT_ARG);
+    static ref AUTH_LINKS_ENV_VAR: String = arg_name_to_env_var(AUTH_LINKS_FLAG);
 }
 
 static SUB_COMMAND_SIGN_IN: &str = "signin";
@@ -51,14 +53,12 @@ fn main() {
 
     let auth_token_arg = create_arg(ACCESS_TOKEN_ARG, &ACCESS_TOKEN_ENV_VAR, &default_config.access_token)
         .short("t")
-        .help("Sets an access token to authenticate a user. We recommend setting the access token as an environment variable.")
-        .takes_value(true);
+        .help("Sets an access token to authenticate a user. We recommend setting the access token as an environment variable.");
 
     let server_address_arg = create_arg(SERVER_ADDRESS_ARG, &SERVER_ADDRESS_ENV_VAR, &default_config.acrolinx_address)
         .short("a")
         .required(true)
-        .help("Sets the URL of the Acrolinx Platform.")
-        .takes_value(true);
+        .help("Sets the URL of the Acrolinx Platform.");
 
     let silent_flag = create_arg(SILENT_FLAG, &OPEN_URL_ENV_VAR, &None)
         .short("s")
@@ -76,12 +76,11 @@ fn main() {
 
     let guidance_profile_arg = create_arg(GUIDANCE_PROFILE_ARG, &GUIDANCE_PROFILE_ENV_VAR, &None)
         .short("i") // TODO: Why i?
-        .help("Sets the guidance profile. See capabilities for available options.")
-        .takes_value(true);
+        .help("Sets the guidance profile. See capabilities for available options.");
 
     let max_concurrent_arg = create_arg(MAX_CONCURRENT_ARG, &MAX_CONCURRENT_ENV_VAR, &None)
         .default_value("1")
-        .help("Maximum number of concurrent checks.").takes_value(true);;
+        .help("Maximum number of concurrent checks.");
 
     let files_arg = create_arg(FILES_ARG, &FILES_ARG_ENV_VAR, &None)
         .short("f")
@@ -89,15 +88,15 @@ fn main() {
         .required(true)
         .help(" Sets the relative or absolute path to the file(s) to be checked.");
 
+    let auth_links_flag = create_arg(AUTH_LINKS_FLAG, &AUTH_LINKS_ENV_VAR, &None)
+        .help("Sets authenticated links in the result files and console output.")
+        .takes_value(false);
+
     let mut command_line_parser = App::new("acrusto")
         .version(crate_version!())
         .author("Marco Stahl <shybyte@gmail.com>")
         .about("Unofficial commandline tool for the Acrolinx Platform API")
-        .arg(server_address_arg)
-        .arg(auth_token_arg)
-        .arg(silent_flag)
-        .arg(log_flag)
-        .arg(open_url_flag)
+        .args(&[server_address_arg, auth_token_arg, silent_flag, log_flag, open_url_flag])
         .subcommand(SubCommand::with_name(SUB_COMMAND_SIGN_IN)
             .about("Signs in to Acrolinx via the Sign-in page and gets an access token."))
         .subcommand(SubCommand::with_name(SUB_COMMAND_INFO)
@@ -106,9 +105,7 @@ fn main() {
             .about("Lists the available check settings."))
         .subcommand(SubCommand::with_name(SUB_COMMAND_CHECK)
             .about("Checks the given file(s) with Acrolinx.")
-            .arg(guidance_profile_arg)
-            .arg(max_concurrent_arg)
-            .arg(files_arg)
+            .args(&[guidance_profile_arg, max_concurrent_arg, auth_links_flag, files_arg])
         );
 
     let args: Vec<_> = env::args().collect();
@@ -140,7 +137,8 @@ fn main() {
         check(&command_config, &CheckCommandOpts {
             files: command_matches.values_of(FILES_ARG).unwrap().map(String::from).collect(),
             guidance_profile: command_matches.value_of(GUIDANCE_PROFILE_ARG).map(String::from),
-            max_concurrent: command_matches.value_of(MAX_CONCURRENT_ARG).unwrap().parse().unwrap()
+            auth_links: command_matches.is_present(AUTH_LINKS_FLAG),
+            max_concurrent: command_matches.value_of(MAX_CONCURRENT_ARG).unwrap().parse().unwrap(),
         });
     }
 }
