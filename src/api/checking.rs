@@ -93,6 +93,7 @@ pub struct CheckRequest {
 pub struct CheckOptions {
     pub guidanceProfileId: Option<String>,
     pub batchId: Option<String>,
+    pub disableCustomFieldValidation: Option<bool>
 }
 
 

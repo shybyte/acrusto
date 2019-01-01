@@ -52,6 +52,7 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     let check_options = Arc::new(CheckOptions {
         guidanceProfileId: opts.guidance_profile.to_owned(),
         batchId: Some(batch_id.clone()),
+        disableCustomFieldValidation: Some(true)
     });
     println!("Generated batch id: {}", batch_id);
 
@@ -106,8 +107,7 @@ pub fn check_file(api: &AcroApi, check_options: &CheckOptions, filename: &str,
         content: file_content,
         checkOptions: check_options.clone(),
         document: Some(DocumentInfo {
-            reference: fs::canonicalize(filename).ok()
-                .map(|path| path.to_string_lossy().into_owned())
+            reference: Some(fs::canonicalize(filename)?.to_string_lossy().into_owned())
         }),
     };
     let check = api.check(&check_request)?;
