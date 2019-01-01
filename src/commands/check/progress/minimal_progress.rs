@@ -2,6 +2,7 @@ use crate::api::checking::CheckResultQuality;
 use crate::commands::check::progress::ProgressReporter;
 use crate::commands::check::progress::MultiProgressReporter;
 use crate::api::errors::ApiError;
+use crate::api::errors::CHECK_CANCELLED_ERROR_TYPE;
 
 pub struct MinimalProgressReporter {
     path: String
@@ -16,7 +17,11 @@ impl ProgressReporter for MinimalProgressReporter {
                 println!("Check done for: {} {}", self.path, quality.score);
             }
             Err(error) => {
-                println!("Error in {}: {}({})", self.path, error.title, error.detail);
+                if error._type == CHECK_CANCELLED_ERROR_TYPE {
+                    println!("Check cancelled: {}", self.path);
+                } else {
+                    println!("Error in {}: {}({})", self.path, error.title, error.detail);
+                }
             }
         }
     }

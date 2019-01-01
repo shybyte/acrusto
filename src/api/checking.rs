@@ -115,8 +115,14 @@ pub struct CheckResponse {
 #[derive(Deserialize, Debug)]
 pub struct CheckResponseLinks {
     pub result: String,
+    pub cancel: String,
 }
 
+#[allow(non_snake_case)]
+#[derive(Deserialize, Debug)]
+pub struct CancelCheckResponseData {
+    pub id: CheckId,
+}
 
 #[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]

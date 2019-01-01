@@ -1,10 +1,24 @@
-use serde_derive::{Deserialize};
 use std::convert::From;
-use reqwest;
 use std::error::Error;
 
+use lazy_static::lazy_static;
+use reqwest;
+use serde_derive::Deserialize;
+
+pub static CHECK_CANCELLED_ERROR_TYPE: &str = "checkCancelled";
+
+lazy_static! {
+    pub static ref CHECK_CANCELLED_ERROR: ApiError = ApiError {
+        _type: CHECK_CANCELLED_ERROR_TYPE.to_string(),
+        title: "Check cancelled".to_string(),
+        detail: "".to_string(),
+        status: None,
+    };
+}
+
+
 #[allow(non_snake_case)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct ApiError {
     #[serde(rename = "type")]
     pub _type: String,
@@ -13,14 +27,13 @@ pub struct ApiError {
     pub status: Option<u16>,
 }
 
-
 impl From<reqwest::Error> for ApiError {
     fn from(request_error: reqwest::Error) -> ApiError {
         ApiError {
             _type: "RequestError".to_string(),
             title: request_error.description().to_string(),
             detail: request_error.to_string(),
-            status: request_error.status().map(|s| s.as_u16())
+            status: request_error.status().map(|s| s.as_u16()),
         }
     }
 }
@@ -31,7 +44,7 @@ impl From<serde_json::error::Error> for ApiError {
             _type: "SerdeError".to_string(),
             title: serde_error.description().to_string(),
             detail: serde_error.to_string(),
-            status: None
+            status: None,
         }
     }
 }
@@ -42,7 +55,7 @@ impl From<std::io::Error> for ApiError {
             _type: "IoError".to_string(),
             title: io_error.description().to_string(),
             detail: io_error.to_string(),
-            status: None
+            status: None,
         }
     }
 }

@@ -1,30 +1,32 @@
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use log::info;
-use simple_logger;
-
-use crate::api::checking::{CheckRequest, DocumentInfo};
-use crate::api::checking::CheckOptions;
-use crate::api::checking::AggregatedReportType::{shortWithApiKey, shortWithoutApiKey};
-use crate::api::common_types::ApiPollResponse;
-use crate::commands::common::CommonCommandConfig;
-use crate::api::checking::GuidanceProfileId;
-use crate::api::AcroApi;
-use crate::commands::common::connect_and_signin;
-use uuid::Uuid;
-use crate::utils::open_url;
 use glob::glob;
+use log::info;
 use regex::Regex;
+use simple_logger;
 use threadpool::ThreadPool;
-use std::sync::Arc;
-use crate::commands::check::progress::ProgressReporter;
-use crate::commands::check::progress::create_multi_progress_reporter;
+use uuid::Uuid;
+
+use crate::api::AcroApi;
+use crate::api::checking::{CheckRequest, DocumentInfo};
+use crate::api::checking::AggregatedReportType::{shortWithApiKey, shortWithoutApiKey};
+use crate::api::checking::CheckOptions;
 use crate::api::checking::CheckResultQuality;
+use crate::api::checking::GuidanceProfileId;
+use crate::api::common_types::ApiPollResponse;
 use crate::api::errors::ApiError;
+use crate::commands::check::progress::create_multi_progress_reporter;
+use crate::commands::check::progress::ProgressReporter;
+use crate::commands::common::CommonCommandConfig;
+use crate::commands::common::connect_and_signin;
+use crate::utils::open_url;
+use crate::api::errors::CHECK_CANCELLED_ERROR;
 
 mod progress;
 
@@ -36,37 +38,52 @@ pub struct CheckCommandOpts {
 }
 
 pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
+    // Setup Ctrl-C handler.
+    let stop_requested = Arc::new(AtomicBool::new(false));
+    let stop_requested_for_handler = stop_requested.clone();
+    ctrlc::set_handler(move || { stop_requested_for_handler.store(true, Ordering::SeqCst) }).expect("Error setting Ctrl-C handler");
+
     let api = Arc::new(connect_and_signin(&config).api);
 
     let reference_pattern = api.get_checking_capabilities().unwrap().referencePattern;
     let reference_regex = Regex::new(&reference_pattern).unwrap();
 
     let batch_id = format!("gen.acrusto.{}", Uuid::new_v4());
-
     let check_options = Arc::new(CheckOptions {
         guidanceProfileId: opts.guidance_profile.to_owned(),
         batchId: Some(batch_id.clone()),
     });
-
     println!("Generated batch id: {}", batch_id);
 
     let pool = ThreadPool::new(opts.max_concurrent);
     let multi_progress = create_multi_progress_reporter();
 
     for file_pattern in &opts.files {
-        let filtered_files = glob(file_pattern).unwrap()
+        let found_files = glob(file_pattern).unwrap()
             .filter_map(Result::ok)
-            .map(|path| { path.to_string_lossy().to_string() })
-            .filter(|file| reference_regex.is_match(file));
+            .map(|path| { path.to_string_lossy().to_string() });
 
-        for path in filtered_files {
+        for path in found_files {
+            if stop_requested.load(Ordering::SeqCst) {
+                return;
+            }
+
+            if !reference_regex.is_match(&path) {
+                continue
+            }
+
             let api = api.clone();
             let check_options = check_options.clone();
             let multi_progress = multi_progress.clone();
+            let stop_requested = stop_requested.clone();
 
             pool.execute(move || {
+                if stop_requested.load(Ordering::SeqCst) {
+                    return;
+                }
                 let progress_reporter = multi_progress.add(&path);
-                let result = check_file(&api, &check_options, &path, progress_reporter.as_ref());
+                let result = check_file(&api, &check_options, &path,
+                                        progress_reporter.as_ref(), stop_requested);
                 progress_reporter.finish(&result);
             });
         }
@@ -78,8 +95,9 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     show_aggregated_report(&config, opts, &api, &batch_id);
 }
 
-pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
-                    progress_reporter: &ProgressReporter) -> Result<CheckResultQuality, ApiError> {
+pub fn check_file(api: &AcroApi, check_options: &CheckOptions, filename: &str,
+                  progress_reporter: &ProgressReporter,
+                  stop_requested: Arc<AtomicBool>) -> Result<CheckResultQuality, ApiError> {
     let mut f = File::open(filename)?;
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
@@ -97,6 +115,11 @@ pub fn check_file<>(api: &AcroApi, check_options: &CheckOptions, filename: &str,
     let mut check_poll_response;
     let check_result;
     loop {
+        if stop_requested.load(Ordering::SeqCst) {
+             api.cancel_check(&check.links)?;
+             return Err(CHECK_CANCELLED_ERROR.clone());
+        }
+
         check_poll_response = api.get_checking_result(&check.links)?;
         info!("check_poll_response = {:?}", check_poll_response);
         match check_poll_response {

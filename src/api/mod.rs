@@ -66,7 +66,7 @@ impl AcroApi {
     pub fn signin(&self) -> Result<SigninRequestResponse, Error> {
         let url = self.props.server_url.clone() + "/api/v1/auth/sign-ins";
         let body = SigninRequest {};
-        self.post(&url, &body, self.create_common_headers())?.json()
+        self.post(&url, &body)?.json()
     }
 
     pub fn get_checking_capabilities(&self) -> Result<CheckingCapabilities, ApiError> {
@@ -76,7 +76,12 @@ impl AcroApi {
     pub fn check(&self, check_request: &CheckRequest)
                  -> Result<SuccessResponse<CheckResponse, CheckResponseLinks>, ApiError> {
         let url = self.props.server_url.clone() + "/api/v1/checking/checks";
-        self.post(&url, &check_request, HeaderMap::new())?.json().map_err(ApiError::from)
+        self.post(&url, &check_request)?.json().map_err(ApiError::from)
+    }
+
+    pub fn cancel_check(&self, check_response_links: &CheckResponseLinks)
+                        -> Result<SuccessResponse<CancelCheckResponseData, NoLinks>, ApiError> {
+        self.delete(&check_response_links.cancel)?.json().map_err(ApiError::from)
     }
 
     pub fn get_checking_result(&self, check_response_links: &CheckResponseLinks)
@@ -143,14 +148,24 @@ impl AcroApi {
         }
     }
 
-    fn post<U: reqwest::IntoUrl, B: ?Sized>(&self, url: U, body: &B, headers: HeaderMap) -> reqwest::Result<reqwest::Response>
+    fn post<U: reqwest::IntoUrl, B: ?Sized>(&self, url: U, body: &B) -> reqwest::Result<reqwest::Response>
         where B: serde::Serialize
     {
         let response = reqwest::Client::new()
             .post(url)
             .headers(self.create_common_headers())
-            .headers(headers)
             .body(serde_json::to_string(&body).unwrap())
+            .send();
+
+        info!("response = {:?}", response);
+
+        response
+    }
+
+    fn delete<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::Result<reqwest::Response> {
+        let response = reqwest::Client::new()
+            .delete(url)
+            .headers(self.create_common_headers())
             .send();
 
         info!("response = {:?}", response);

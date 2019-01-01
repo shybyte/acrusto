@@ -24,6 +24,7 @@ regex = "1"
 threadpool = "1.0"
 indicatif = "0.11.0"
 console = "0.7.2"
+ctrlc = { version = "3", features = ["termination"] }
 
 [profile.release]
 opt-level = "s"

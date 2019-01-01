@@ -10,6 +10,7 @@ use ansi_term::ANSIGenericString;
 use crate::commands::check::progress::ProgressReporter;
 use crate::commands::check::progress::MultiProgressReporter;
 use crate::api::errors::ApiError;
+use crate::api::errors::CHECK_CANCELLED_ERROR_TYPE;
 
 pub struct ProgressBarReporter {
     progress_bar: indicatif::ProgressBar,
@@ -41,8 +42,13 @@ impl ProgressReporter for ProgressBarReporter {
 
     fn finish(&self, result: &Result<CheckResultQuality, ApiError>) {
         let message = match result {
-            Ok(quality) =>colored_score(quality),
-            Err(_) => Red.blink().paint("ERR")
+            Ok(quality) => colored_score(quality),
+            Err(error) =>
+                if error._type == CHECK_CANCELLED_ERROR_TYPE {
+                    Red.paint("CNL")
+                } else {
+                    Red.blink().paint("ERR")
+                }
         };
         self.progress_bar.finish_with_message(&format!("{}", message));
     }
