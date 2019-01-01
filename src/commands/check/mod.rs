@@ -83,8 +83,7 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
                     return;
                 }
                 let progress_reporter = multi_progress.add(&path);
-                let result = check_file(&api, &check_options, &path,
-                                        progress_reporter.as_ref(), stop_requested);
+                let result = check_file(&api, &check_options, &path, progress_reporter.as_ref(), &stop_requested);
                 progress_reporter.finish(&result);
             });
         }
@@ -98,7 +97,7 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
 
 pub fn check_file(api: &AcroApi, check_options: &CheckOptions, filename: &str,
                   progress_reporter: &ProgressReporter,
-                  stop_requested: Arc<AtomicBool>) -> Result<CheckResultQuality, ApiError> {
+                  stop_requested: &AtomicBool) -> Result<CheckResultQuality, ApiError> {
     let mut f = File::open(filename)?;
     let mut file_content = String::new();
     f.read_to_string(&mut file_content).expect("Problem reading document");
