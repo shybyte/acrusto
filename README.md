@@ -7,6 +7,10 @@ A rust cli app that uses a JSON web service.
     sudo apt-get install pkg-config
     sudo apt-get install libssl-dev
 
+## License
+
+MIT
+
 ## Copyright
 
-Copyright (c) 2018 Marco Stahl
+Copyright (c) 2018-present Marco Stahl
