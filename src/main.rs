@@ -5,6 +5,7 @@ use clap::crate_version;
 use lazy_static::lazy_static;
 use log::Level;
 use simple_logger;
+use std::alloc::System;
 
 use crate::commands::capabilities::show_capabilities;
 use crate::commands::check::check;
@@ -18,6 +19,9 @@ mod config;
 mod api;
 mod commands;
 mod utils;
+
+#[global_allocator]
+static GLOBAL: System = System;
 
 static SERVER_ADDRESS_ARG: &str = "acrolinx-address";
 static ACCESS_TOKEN_ARG: &str = "access-token";
@@ -53,6 +57,8 @@ fn main() {
 
     let auth_token_arg = create_arg(ACCESS_TOKEN_ARG, &ACCESS_TOKEN_ENV_VAR, &default_config.access_token)
         .short("t")
+        .hide_env_values(true)
+        .hide_default_value(true)
         .help("Sets an access token to authenticate a user. We recommend setting the access token as an environment variable.");
 
     let server_address_arg = create_arg(SERVER_ADDRESS_ARG, &SERVER_ADDRESS_ENV_VAR, &default_config.acrolinx_address)

@@ -25,7 +25,17 @@ threadpool = "1.0"
 indicatif = "0.11.0"
 console = "0.7.2"
 ctrlc = { version = "3", features = ["termination"] }
+# Add openssl-sys as a direct dependency so it can be cross compiled to
+# x86_64-unknown-linux-musl using the "vendored" feature below
+openssl-sys = "*"
 
 [profile.release]
 opt-level = "s"
 lto = true
+
+[features]
+# Force openssl-sys to staticly link in the openssl library. Necessary when
+# cross compiling to x86_64-unknown-linux-musl.
+# sudo apt install musl-tools
+# cargo build -release --target=x86_64-unknown-linux-musl --features vendored
+vendored = ["openssl-sys/vendored"]
