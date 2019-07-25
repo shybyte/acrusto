@@ -66,6 +66,8 @@ pub enum ContentEncoding {
 pub enum CheckType {
     batch,
     interactive,
+    baseline,
+    automated
 }
 
 #[allow(non_camel_case_types)]
@@ -73,6 +75,7 @@ pub enum CheckType {
 pub enum ReportType {
     scorecard,
     extractedText,
+    termHarvesting
 }
 
 #[allow(non_snake_case)]
