@@ -9,7 +9,6 @@ use std::time::Duration;
 use glob::glob;
 use log::info;
 use regex::Regex;
-use simple_logger;
 use threadpool::ThreadPool;
 use uuid::Uuid;
 
@@ -46,7 +45,9 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
     let api = Arc::new(connect_and_signin(&config).api);
 
     let reference_pattern = api.get_checking_capabilities().unwrap().referencePattern;
-    let reference_regex = Regex::new(&reference_pattern).unwrap();
+
+    // TODO: Handle referencePattern parsing error
+    let reference_regex = Regex::new(&reference_pattern);
 
     let batch_id = format!("gen.acrusto.{}", Uuid::new_v4());
     let check_options = Arc::new(CheckOptions {
@@ -69,8 +70,10 @@ pub fn check(config: &CommonCommandConfig, opts: &CheckCommandOpts) {
                 return;
             }
 
-            if !reference_regex.is_match(&path) {
-                continue
+            if let Ok(ref reference_regex) = reference_regex {
+                if reference_regex.is_match(&path) {
+                    continue
+                }
             }
 
             let api = api.clone();
